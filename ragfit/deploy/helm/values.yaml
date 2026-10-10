@@ -1,0 +1,165 @@
+# ragfit/deploy/helm/values.yaml – RagFit | Plan auf K9ix (P1)
+# Upstream-Chart openproject 13.13.1 (Referenz: upstream-values-13.13.1.reference.yaml).
+# Keine Klartext-Secrets. Alle Secrets kommen aus agenix bzw. werden von Nix-Bootstrap-Units
+# als k8s-Secret im Namespace `plan` erzeugt (siehe nix/ragfit-plan.nix).
+# Speicherbudget: K9ix hat am 10.10.2026 23:51 MESZ 3,76 GiB "available" und noch ~3,5 GiB
+# unvergebene Requests (11665Mi von ~15,2Gi). Summe Limits hier ≈ 2,4 GiB (+1 GiB Seeder, kurzlebig).
+openproject:
+  # --- Image per Digest (Regel 10.10.: nur CI-Build im Fork, Pull per Digest) ---
+  image:
+    registry: "ghcr.io"
+    repository: "erynoagroup/openproject"
+    # Chart rendert registry/repository@sha256:<wert>; Wert OHNE "sha256:"-Präfix.
+    sha256: "37abc81a66a833279c10ed495f4efb8bff25603cf4d5ced0ff549e1596d6fba9"
+    tag: "17.9.1-slim"            # nur Doku; bei gesetztem sha256 ignoriert
+    imagePullPolicy: "IfNotPresent"
+
+  # Privates GHCR: Pull läuft node-weit über k3s registries.yaml
+  # (modules/services/ghcr-registry-auth.nix + secrets/ghcr-token.age, read:packages).
+  # Konvention auf dem Single-Node: KEIN zusätzliches imagePullSecret.
+  # Falls Bedrock doch ein Pod-Secret will: Nix-Unit erzeugt `ghcr-pull` aus agenix, dann:
+  # imagePullSecrets: [ ghcr-pull ]
+  imagePullSecrets: []
+
+  # --- Topologie: so schlank wie möglich ---
+  replicaCount: 1
+  backgroundReplicaCount: 1
+  strategy:
+    type: Recreate
+  autoscaling:
+    enabled: false
+
+  # Web (Puma)
+  resources:
+    requests: { memory: "640Mi", cpu: "100m" }
+    limits:   { memory: "1Gi" }        # kein CPU-Limit (K9ix-Konvention, Throttling vermeiden)
+  workers:
+    default:
+      queues: ""
+      maxThreads: 5
+      replicaCount: 1
+      strategy: { type: Recreate }
+      resources:
+        requests: { memory: "384Mi", cpu: "50m" }
+        limits:   { memory: "768Mi" }
+  seederJob:
+    resources:
+      requests: { memory: "512Mi" }
+      limits:   { memory: "1Gi" }
+  dbInit:
+    image:   # gleicher Digest wie vars.images.postgres (16.13-alpine) statt docker.io/postgres:16
+      registry: "docker.io"
+      repository: "library/postgres"
+      tag: "16.13-alpine"
+      # Chart 13.13.1 rendert für dbInit kein sha256 (geprüft per helm template) → Tag-Pin; Digest-Pin = offene Frage
+    resources:
+      requests: { memory: "32Mi", cpu: "10m" }
+      limits:   { memory: "128Mi" }
+  appInit:
+    resources:
+      requests: { memory: "128Mi", cpu: "10m" }
+      limits:   { memory: "512Mi" }
+  cron:
+    enabled: false                 # kein IMAP/LDAP-Sync nötig
+  hocuspocus:
+    enabled: false                 # Echtzeit-Kollaboration spart ~150–250 MiB; später eigener PR
+  memcached:
+    bundled: true
+    resources:
+      requests: { memory: "64Mi", cpu: "10m" }
+      limits:   { memory: "128Mi" }
+    # [A] Bitnami-Subchart: Image ggf. analog Postgres-Fall auf Digest pinnen (offene Frage Bedrock)
+
+  environment:
+    OPENPROJECT_WEB_WORKERS: "1"                 # [A, prüfen] 1 Puma-Prozess statt 2
+    OPENPROJECT_WEB_MIN__THREADS: "2"            # [A, prüfen]
+    OPENPROJECT_WEB_MAX__THREADS: "8"            # [A, prüfen]
+    OPENPROJECT_DEFAULT__LANGUAGE: "de"
+    OPENPROJECT_SEED__LOCALE: "de"
+    OPENPROJECT_SELF__REGISTRATION: "0"          # Konten nur via OIDC (Menschen) bzw. Bootstrap (Agenten)
+    OPENPROJECT_OMNIAUTH__DIRECT__LOGIN__PROVIDER: "source"  # Auto-Redirect auf Source; Notzugang /login?internal
+    OPENPROJECT_DISABLE__PASSWORD__LOGIN: "false" # Break-Glass-Admin bleibt lokal (wie Argo `admin`)
+
+  # OIDC-Provider `source` per env (OpenProject env-Provider, Präfix OPENPROJECT_OPENID__CONNECT_SOURCE_*).
+  # Secret plan/oidc-source-plan gehört Smith (Source-Bootstrap): Keys client_id, client_secret, issuer.
+  # Redirect-URI in Source: https://plan.tail3808da.ts.net/auth/source/callback
+  extraEnvVars:
+    - name: OPENPROJECT_OPENID__CONNECT_SOURCE_IDENTIFIER
+      valueFrom: { secretKeyRef: { name: oidc-source-plan, key: client_id } }
+    - name: OPENPROJECT_OPENID__CONNECT_SOURCE_SECRET
+      valueFrom: { secretKeyRef: { name: oidc-source-plan, key: client_secret } }
+    - name: OPENPROJECT_OPENID__CONNECT_SOURCE_ISSUER
+      valueFrom: { secretKeyRef: { name: oidc-source-plan, key: issuer } }   # exakt https://forgejo.tail3808da.ts.net/ (mit Slash); keine Discovery per ENV
+    - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_DISPLAY__NAME, value: "RagFit | Source" }
+    - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_HOST, value: "forgejo.tail3808da.ts.net" }
+    - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_AUTHORIZATION__ENDPOINT, value: "/login/oauth/authorize" }
+    - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_TOKEN__ENDPOINT, value: "/login/oauth/access_token" }
+    - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_USERINFO__ENDPOINT, value: "/login/oauth/userinfo" }
+    - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_JWKS__URI, value: "/login/oauth/keys" }
+    - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_SCOPE, value: "[openid, profile, email, groups]" }
+    - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_ATTRIBUTE__MAP_LOGIN, value: "preferred_username" }
+    - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_ATTRIBUTE__MAP_EMAIL, value: "email" }
+    - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_ATTRIBUTE__MAP_FIRST__NAME, value: "name" }   # Forgejo hat kein given_name
+
+  openproject:
+    https: true
+    host: "plan.tail3808da.ts.net"   # [A] Hostname final mit Bedrock klären (Katalog-host "plan")
+    hsts: true
+    cache: { store: "memcache" }
+    realtime_collaboration:
+      enabled: false
+    secretKeyBase:
+      existingSecret: "ragfit-plan-app"   # von Nix aus generate-service-secret "ragfit-plan:secret-key-base"
+      secretKey: "secret-key-base"
+    admin_user:
+      secret: "ragfit-plan-app"           # Break-Glass-Admin, Passwort aus agenix (secrets/ragfit-plan-admin.age)
+      secretKeys: { password: "admin-password" }
+      name: "RagFit Plan Admin"
+      mail: "ops@erynoa.invalid"          # [A] echte Ops-Adresse eintragen
+      password_reset: "false"
+    # --- OIDC: einziger Provider = RagFit | Source (E1 neu), Name `source` (mit Smith abgestimmt) ---
+    # Chart-eigenes oidc.existingSecret NICHT nutzbar: secret_oidc.yaml liest es per Helm `lookup`,
+    # das Argo CD nicht ausführt → IDENTIFIER/SECRET würden leer gerendert (geprüft per helm template).
+    # Deshalb oidc.enabled=false und Provider komplett über env + secretKeyRef (siehe extraEnvVars unten).
+    oidc:
+      enabled: false
+    postgresStatementTimeout: 120s
+    useTmpVolumes: true
+    tmpVolumesStorage: "1Gi"
+
+  # --- Datenbank: extern, Nix-verwaltetes Postgres (Konvention: Postgres pro Service) ---
+  postgresql:
+    bundled: false
+    connection:
+      host: "ragfit-plan-db.plan.svc.cluster.local"
+      port: 5432
+    auth:
+      existingSecret: "ragfit-plan-db"     # von Nix (generate-service-secret "ragfit-plan:db")
+      secretKeys:
+        userPasswordKey: "password"
+        adminPasswordKey: "postgres-password"
+      username: "openproject"
+      database: "openproject"
+
+  # --- Anhänge ---
+  persistence:
+    enabled: true
+    accessModes: [ "ReadWriteOnce" ]
+    size: "5Gi"
+    storageClassName: ""                  # statisches local-path-PV aus storage.nix (wie plane-*)
+    # Chart 13.13.1 kennt kein existingClaim: PVC heißt <release>-openproject;
+    # das PV in storage.nix bindet per claimRef auf genau diesen Namen.
+
+  # --- Netz: kein Chart-Ingress; Tailnet-Zugang über mkProxy + Tailscale-Operator (Nix) ---
+  ingress:
+    enabled: false
+  service:
+    enabled: true
+    type: ClusterIP
+  networkPolicy:
+    enabled: false                        # [A] später analog Plane
+
+  podSecurityContext:
+    enabled: true
+  containerSecurityContext:
+    enabled: true

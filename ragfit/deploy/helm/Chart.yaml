@@ -1,0 +1,14 @@
+# ragfit/deploy/helm/Chart.yaml  (Ziel: ErynoaGroup/openproject, Pfad ragfit/deploy/helm)
+# Wrapper-Chart: pinnt den Upstream-Chart opf/helm-charts exakt (E2), Values liegen daneben.
+# Grund für Wrapper statt Argo-Multi-Source: der Application-Generator in
+# .nixos-devstack/modules/k8s/argocd.nix kann nur `repoURL + path` (kein chart:, kein $values).
+apiVersion: v2
+name: ragfit-plan
+description: RagFit | Plan (OpenProject-Fork) auf K9ix – Wrapper um den offiziellen OpenProject-Chart
+type: application
+version: 0.1.0
+appVersion: "17.9.1-ragfit.0"
+dependencies:
+  - name: openproject
+    version: "13.13.1"            # fest; Chart-Bump = eigener PR
+    repository: "https://charts.openproject.org"
