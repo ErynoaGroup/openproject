@@ -50,8 +50,10 @@ openproject:
     image:   # gleicher Digest wie vars.images.postgres (16.13-alpine) statt docker.io/postgres:16
       registry: "docker.io"
       repository: "library/postgres"
-      tag: "16.13-alpine"
-      # Chart 13.13.1 rendert für dbInit kein sha256 (geprüft per helm template) → Tag-Pin; Digest-Pin = offene Frage
+      # Chart rendert nur registry/repository:tag → Digest im Tag. Gleicher Index-Digest wie vars.images.postgres
+      # (.nixos-devstack, läuft auf K9ix; multi-arch, PG_VERSION=16.13, 26.02.2026). Hub-Tag zeigt heute auf
+      # 4e6e670b… (Rebuild 21.04.2026, ebenfalls 16.13) – Bump beider Stellen = eigener PR.
+      tag: "16.13-alpine@sha256:20edbde7749f822887a1a022ad526fde0a47d6b2be9a8364433605cf65099416"
     resources:
       requests: { memory: "32Mi", cpu: "10m" }
       limits:   { memory: "128Mi" }
@@ -60,7 +62,7 @@ openproject:
       requests: { memory: "128Mi", cpu: "10m" }
       limits:   { memory: "512Mi" }
   cron:
-    enabled: false                 # kein IMAP/LDAP-Sync nötig
+    enabled: false                 # Chart rendert cron-Deployment mit replicas: 0 → kein RAM
   hocuspocus:
     enabled: false                 # Echtzeit-Kollaboration spart ~150–250 MiB; später eigener PR
   memcached:
@@ -68,7 +70,11 @@ openproject:
     resources:
       requests: { memory: "64Mi", cpu: "10m" }
       limits:   { memory: "128Mi" }
-    # [A] Bitnami-Subchart: Image ggf. analog Postgres-Fall auf Digest pinnen (offene Frage Bedrock)
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/memcached
+      tag: 1.6.24-debian-12-r0
+      digest: "sha256:1d80b6a96f001b166fff06b4d7882faf348ef7510b327c63b662d73771300d15"   # Registry-Index-Digest, geprüft 11.10.2026
 
   environment:
     OPENPROJECT_WEB_WORKERS: "1"                 # [A, prüfen] 1 Puma-Prozess statt 2
@@ -142,13 +148,12 @@ openproject:
       database: "openproject"
 
   # --- Anhänge ---
+  # AppProject `plan` blockt PVCs → PVC kommt aus Nix (storage.nix mkLocalVolume ragfit-plan-assets);
+  # Chart nutzt sie per existingClaim, Argo-prune kann die Daten nie treffen.
+  # Image läuft als `app` (useradd → UID 1000), Chart setzt runAsUser/fsGroup 1000.
   persistence:
     enabled: true
-    accessModes: [ "ReadWriteOnce" ]
-    size: "5Gi"
-    storageClassName: ""                  # statisches local-path-PV aus storage.nix (wie plane-*)
-    # Chart 13.13.1 kennt kein existingClaim: PVC heißt <release>-openproject;
-    # das PV in storage.nix bindet per claimRef auf genau diesen Namen.
+    existingClaim: "ragfit-plan-assets"
 
   # --- Netz: kein Chart-Ingress; Tailnet-Zugang über mkProxy + Tailscale-Operator (Nix) ---
   ingress:

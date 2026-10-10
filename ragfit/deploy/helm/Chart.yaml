@@ -11,4 +11,4 @@ appVersion: "17.9.1-ragfit.0"
 dependencies:
   - name: openproject
     version: "13.13.1"            # fest; Chart-Bump = eigener PR
-    repository: "https://charts.openproject.org"
+    repository: "https://charts.openproject.org"   # vendored: charts/openproject-13.13.1.tgz + Chart.lock (kein Egress nötig)
