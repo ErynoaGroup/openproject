@@ -88,14 +88,15 @@ openproject:
 
   # OIDC-Provider `source` per env (OpenProject env-Provider, Präfix OPENPROJECT_OPENID__CONNECT_SOURCE_*).
   # Secret plan/oidc-source-plan gehört Smith (Source-Bootstrap): Keys client_id, client_secret, issuer.
-  # Redirect-URI in Source: https://plan.tail3808da.ts.net/auth/source/callback
+  # Redirect-URI in Source: https://plan.<tailnet>/auth/source/callback
+  # Restore von oidc-source-plan: Keyring (mkSecretSync aus secrets/plan-oidc-source.age).
   extraEnvVars:
     - name: OPENPROJECT_OPENID__CONNECT_SOURCE_IDENTIFIER
       valueFrom: { secretKeyRef: { name: oidc-source-plan, key: client_id } }
     - name: OPENPROJECT_OPENID__CONNECT_SOURCE_SECRET
       valueFrom: { secretKeyRef: { name: oidc-source-plan, key: client_secret } }
     - name: OPENPROJECT_OPENID__CONNECT_SOURCE_ISSUER
-      valueFrom: { secretKeyRef: { name: oidc-source-plan, key: issuer } }   # exakt https://forgejo.tail3808da.ts.net/ (mit Slash); keine Discovery per ENV
+      valueFrom: { secretKeyRef: { name: oidc-source-plan, key: issuer } }   # exakt https://forgejo.<tailnet>/ (mit Slash); keine Discovery per ENV
     - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_DISPLAY__NAME, value: "RagFit | Source" }
     - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_HOST, value: "forgejo.tail3808da.ts.net" }
     - { name: OPENPROJECT_OPENID__CONNECT_SOURCE_AUTHORIZATION__ENDPOINT, value: "/login/oauth/authorize" }
