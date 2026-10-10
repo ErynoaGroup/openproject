@@ -1,0 +1,119 @@
+name: erynoa-upstream-sync
+
+on:
+  schedule:
+    - cron: "41 4 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: erynoa-upstream-sync
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: opf/openproject
+  UPSTREAM_URL: https://github.com/opf/openproject.git
+  # paths whose change means a Rails DB schema migration (forward-only)
+  SCHEMA_PATHS: "db/migrate modules/*/db/migrate*"
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Find latest stable upstream release
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          latest=$(gh api "repos/${UPSTREAM}/releases?per_page=50" \
+            --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
+          if [ -z "$latest" ]; then echo "no stable release found" >&2; exit 1; fi
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "Latest stable upstream: $latest"
+
+      - name: Fetch upstream tag
+        env:
+          TAG: ${{ steps.tag.outputs.latest }}
+        run: |
+          set -euo pipefail
+          git remote add upstream "$UPSTREAM_URL"
+          git fetch --no-tags upstream "+refs/tags/${TAG}:refs/tags/${TAG}"
+
+      - name: Check whether sync is needed
+        id: check
+        env:
+          TAG: ${{ steps.tag.outputs.latest }}
+        run: |
+          set -euo pipefail
+          if git merge-base --is-ancestor "${TAG}^{commit}" origin/main; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"; echo "main already contains ${TAG}"
+          elif git ls-remote --exit-code --heads origin "sync/${TAG}" > /dev/null; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"; echo "sync/${TAG} already exists (PR open or handled)"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create sync branch (new branch per tag, no force-push)
+        if: steps.check.outputs.needed == 'true'
+        id: branch
+        env:
+          TAG: ${{ steps.tag.outputs.latest }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git push origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          git switch -c "sync/${TAG}" origin/main
+          git merge --no-ff --no-edit -m "sync: upstream ${TAG}" "${TAG}"
+          git push origin "sync/${TAG}"
+          set -f  # keep the pathspec globs for git, not the shell
+          # shellcheck disable=SC2086
+          changed=$(git diff --name-only origin/main HEAD -- $SCHEMA_PATHS | head -n 50)
+          if [ -n "$changed" ]; then
+            echo "schema=true" >> "$GITHUB_OUTPUT"
+            { echo "files<<EOF_FILES"; echo "$changed"; echo "EOF_FILES"; } >> "$GITHUB_OUTPUT"
+          else
+            echo "schema=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open PR (never auto-merged)
+        if: steps.check.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.latest }}
+          SCHEMA: ${{ steps.branch.outputs.schema }}
+          FILES: ${{ steps.branch.outputs.files }}
+        run: |
+          set -euo pipefail
+          body="Upstream release ${TAG}: https://github.com/${UPSTREAM}/releases/tag/${TAG}
+
+          - Review release notes (https://www.openproject.org/docs/release-notes/) before merging.
+          - Merge with a merge commit. Never auto-merge.
+          - The merge to main triggers erynoa-build.yml."
+          labels=(--label upstream-sync)
+          gh label create upstream-sync --color 0e8a16 --description "Upstream release sync" 2>/dev/null || true
+          if [ "$SCHEMA" = "true" ]; then
+            gh label create schema-migration --color b60205 --description "Touches db/migrate (forward-only). pg_dump + attachments backup first." 2>/dev/null || true
+            labels+=(--label schema-migration)
+            body="${body}
+
+          **db/migrate changed (forward-only, image rollback is not enough):**
+          \`\`\`
+          ${FILES}
+          \`\`\`
+          Before rollout: pg_dump of the OpenProject DB + copy of the attachments volume."
+          fi
+          gh pr create --base main --head "sync/${TAG}" --title "sync: upstream ${TAG}" --body "$body" "${labels[@]}"
