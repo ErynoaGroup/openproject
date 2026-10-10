@@ -1,0 +1,145 @@
+From a36b64015ba62cd5ab53f615717d6efb2855bc90 Mon Sep 17 00:00:00 2001
+From: Niklas Klein <niklas@jklein.de>
+Date: Sat, 10 Oct 2026 21:31:21 +0000
+Subject: [PATCH] ragfit: allow OIDC provider setup without token (0001
+ sso-unlock)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Only OpenID Connect; SAML and other gated features unchanged.
+See CHANGES-RAGFIT.md. GPLv3 §10.
+---
+ CHANGES-RAGFIT.md                             | 21 +++++++++++++++++++
+ .../lib/open_project/plugins/auth_plugin.rb   |  6 ++++--
+ .../openid_connect/providers_controller.rb    |  7 ++-----
+ .../openid_connect/providers/index.html.erb   |  3 +--
+ .../lib/open_project/openid_connect/engine.rb |  4 ++--
+ 5 files changed, 30 insertions(+), 11 deletions(-)
+ create mode 100644 CHANGES-RAGFIT.md
+
+diff --git a/CHANGES-RAGFIT.md b/CHANGES-RAGFIT.md
+new file mode 100644
+index 00000000..24c385fc
+--- /dev/null
++++ b/CHANGES-RAGFIT.md
+@@ -0,0 +1,21 @@
++# RagFit changes to OpenProject (ErynoaGroup/openproject → RagFit | Plan)
++
++This repository is a modified version of OpenProject (GPL-3.0-only, © OpenProject GmbH).
++Per GPLv3 §5(a), all modifications are listed here with date. Upstream notices are kept unchanged.
++
++## 2026-10-10 — 0001 sso-unlock (branch `erynoa/sso-unlock`)
++
++**What:** OpenID Connect provider setup and OIDC login work without a token.
++Only the OIDC module is affected; SAML and all other token-gated features are unchanged.
++
++- `modules/auth_plugins/lib/open_project/plugins/auth_plugin.rb`: `filtered_strategy?` also lets `:openid_connect` strategies through.
++- `modules/openid_connect/app/controllers/openid_connect/providers_controller.rb`: `check_ee` before_action removed.
++- `modules/openid_connect/app/views/openid_connect/providers/index.html.erb`: add button no longer disabled, upsell banner removed.
++- `modules/openid_connect/lib/open_project/openid_connect/engine.rb`: admin menu entry no longer marked as token feature.
++
++No tokens are created or simulated; `EnterpriseToken` itself is untouched.
++
++**Why:** RagFit | Plan logs in through RagFit | Source (OIDC). ErynoaGroup holds no commercial
++OpenProject contract or license (confirmed by Niklas Klein, 2026-10-10, recorded in ADR-003).
++GPLv3 §10 grants every recipient the right to modify and run the program; the code is GPLv3
++and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patches/0001-sso-unlock.patch`.
+diff --git a/modules/auth_plugins/lib/open_project/plugins/auth_plugin.rb b/modules/auth_plugins/lib/open_project/plugins/auth_plugin.rb
+index 1ccaef68..cde467d4 100644
+--- a/modules/auth_plugins/lib/open_project/plugins/auth_plugin.rb
++++ b/modules/auth_plugins/lib/open_project/plugins/auth_plugin.rb
+@@ -1,3 +1,4 @@
++# RagFit patch (erynoa/sso-unlock, 2026-10-10): OIDC provider setup available without token. GPLv3 §10 modification, see CHANGES-RAGFIT.md
+ #-- copyright
+ # OpenProject is an open source project management software.
+ # Copyright (C) the OpenProject GmbH
+@@ -89,9 +90,10 @@ module OpenProject::Plugins
+       end
+     end
+ 
+-    def self.filtered_strategy?(_strategy_key, provider)
++    def self.filtered_strategy?(strategy_key, provider)
+       name = provider[:name]&.to_s
+-      EnterpriseToken.allows_to?(:sso_auth_providers) || name == "developer"
++      EnterpriseToken.allows_to?(:sso_auth_providers) || name == "developer" ||
++        strategy_key == :openid_connect # RagFit: OIDC only, SAML etc. stay gated
+     end
+ 
+     def self.strategy_key(strategy)
+diff --git a/modules/openid_connect/app/controllers/openid_connect/providers_controller.rb b/modules/openid_connect/app/controllers/openid_connect/providers_controller.rb
+index ebd6a124..fef5dec4 100644
+--- a/modules/openid_connect/app/controllers/openid_connect/providers_controller.rb
++++ b/modules/openid_connect/app/controllers/openid_connect/providers_controller.rb
+@@ -1,4 +1,5 @@
+ # frozen_string_literal: true
++# RagFit patch (erynoa/sso-unlock, 2026-10-10): OIDC provider setup available without token. GPLv3 §10 modification, see CHANGES-RAGFIT.md
+ 
+ #-- copyright
+ # OpenProject is an open source project management software.
+@@ -36,7 +37,7 @@ module OpenIDConnect
+     menu_item :plugin_openid_connect
+ 
+     before_action :require_admin
+-    before_action :check_ee, except: %i[index]
++    # RagFit: token check (check_ee) removed for OIDC providers only
+     before_action :find_provider, only: %i[edit show update confirm_destroy destroy]
+     before_action :set_edit_state, only: %i[create edit update]
+ 
+@@ -132,10 +133,6 @@ module OpenIDConnect
+ 
+     private
+ 
+-    def check_ee
+-      redirect_to action: :index unless EnterpriseToken.allows_to?(:sso_auth_providers)
+-    end
+-
+     def find_provider
+       @provider = OpenIDConnect::Provider.find(params.expect(:id))
+     end
+diff --git a/modules/openid_connect/app/views/openid_connect/providers/index.html.erb b/modules/openid_connect/app/views/openid_connect/providers/index.html.erb
+index fc181f85..d2831e17 100644
+--- a/modules/openid_connect/app/views/openid_connect/providers/index.html.erb
++++ b/modules/openid_connect/app/views/openid_connect/providers/index.html.erb
+@@ -1,3 +1,4 @@
++<%# RagFit patch (erynoa/sso-unlock, 2026-10-10): OIDC provider setup available without token. GPLv3 §10 modification, see CHANGES-RAGFIT.md %>
+ <% html_title(t(:label_administration), t("openid_connect.providers.plural")) -%>
+ 
+ <%=
+@@ -18,7 +19,6 @@
+                                label: I18n.t("openid_connect.providers.singular"),
+                                anchor_align: :end,
+                                button_arguments: { scheme: :primary,
+-                                                   disabled: !EnterpriseToken.allows_to?(:sso_auth_providers),
+                                                    aria: { label: I18n.t("openid_connect.providers.label_add_new") } }) do |menu|
+       OpenIDConnect::Provider::OIDC_PROVIDERS.each do |provider_type|
+         menu.with_item(
+@@ -30,5 +30,4 @@
+   end
+ %>
+ 
+-<%= render EnterpriseEdition::BannerComponent.new(:sso_auth_providers, i18n_scope: "openid_connect.providers.upsell") %>
+ <%= render ::OpenIDConnect::Providers::TableComponent.new(rows: @providers) %>
+diff --git a/modules/openid_connect/lib/open_project/openid_connect/engine.rb b/modules/openid_connect/lib/open_project/openid_connect/engine.rb
+index 36750431..abb03286 100644
+--- a/modules/openid_connect/lib/open_project/openid_connect/engine.rb
++++ b/modules/openid_connect/lib/open_project/openid_connect/engine.rb
+@@ -1,4 +1,5 @@
+ # frozen_string_literal: true
++# RagFit patch (erynoa/sso-unlock, 2026-10-10): OIDC provider setup available without token. GPLv3 §10 modification, see CHANGES-RAGFIT.md
+ 
+ #-- copyright
+ # OpenProject is an open source project management software.
+@@ -46,8 +47,7 @@ module OpenProject::OpenIDConnect
+            :openid_connect_providers_path,
+            parent: :authentication,
+            after: :oauth_applications,
+-           caption: ->(*) { I18n.t("openid_connect.menu_title") },
+-           enterprise_feature: "sso_auth_providers"
++           caption: ->(*) { I18n.t("openid_connect.menu_title") }
+     end
+ 
+     assets %w(
+-- 
+2.47.3
+

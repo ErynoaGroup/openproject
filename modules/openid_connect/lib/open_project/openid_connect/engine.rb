@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# RagFit patch (erynoa/sso-unlock, 2026-10-10): OIDC provider setup available without token. GPLv3 §10 modification, see CHANGES-RAGFIT.md
 
 #-- copyright
 # OpenProject is an open source project management software.
@@ -46,8 +47,7 @@ module OpenProject::OpenIDConnect
            :openid_connect_providers_path,
            parent: :authentication,
            after: :oauth_applications,
-           caption: ->(*) { I18n.t("openid_connect.menu_title") },
-           enterprise_feature: "sso_auth_providers"
+           caption: ->(*) { I18n.t("openid_connect.menu_title") }
     end
 
     assets %w(
