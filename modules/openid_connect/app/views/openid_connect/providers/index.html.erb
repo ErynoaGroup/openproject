@@ -1,3 +1,4 @@
+<%# RagFit patch (erynoa/sso-unlock, 2026-10-10): OIDC provider setup available without token. GPLv3 §10 modification, see CHANGES-RAGFIT.md %>
 <% html_title(t(:label_administration), t("openid_connect.providers.plural")) -%>
 
 <%=
@@ -18,7 +19,6 @@
                                label: I18n.t("openid_connect.providers.singular"),
                                anchor_align: :end,
                                button_arguments: { scheme: :primary,
-                                                   disabled: !EnterpriseToken.allows_to?(:sso_auth_providers),
                                                    aria: { label: I18n.t("openid_connect.providers.label_add_new") } }) do |menu|
       OpenIDConnect::Provider::OIDC_PROVIDERS.each do |provider_type|
         menu.with_item(
@@ -30,5 +30,4 @@
   end
 %>
 
-<%= render EnterpriseEdition::BannerComponent.new(:sso_auth_providers, i18n_scope: "openid_connect.providers.upsell") %>
 <%= render ::OpenIDConnect::Providers::TableComponent.new(rows: @providers) %>

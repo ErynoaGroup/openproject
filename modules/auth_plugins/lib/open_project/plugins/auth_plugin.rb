@@ -1,3 +1,4 @@
+# RagFit patch (erynoa/sso-unlock, 2026-10-10): OIDC provider setup available without token. GPLv3 §10 modification, see CHANGES-RAGFIT.md
 #-- copyright
 # OpenProject is an open source project management software.
 # Copyright (C) the OpenProject GmbH
@@ -89,9 +90,10 @@ module OpenProject::Plugins
       end
     end
 
-    def self.filtered_strategy?(_strategy_key, provider)
+    def self.filtered_strategy?(strategy_key, provider)
       name = provider[:name]&.to_s
-      EnterpriseToken.allows_to?(:sso_auth_providers) || name == "developer"
+      EnterpriseToken.allows_to?(:sso_auth_providers) || name == "developer" ||
+        strategy_key == :openid_connect # RagFit: OIDC only, SAML etc. stay gated
     end
 
     def self.strategy_key(strategy)
