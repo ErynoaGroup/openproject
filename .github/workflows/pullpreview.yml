@@ -2,12 +2,15 @@ name: pullpreview
 
 concurrency: ${{ github.ref }}
 
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  schedule:
-    # this is used to make sure no dangling resources are left
-    - cron: "30 2 * * *"
-  pull_request:
-    types: [labeled, unlabeled, synchronize, closed, reopened]
+  workflow_dispatch:
+#RAGFIT-OFF#   schedule:
+#RAGFIT-OFF#     # this is used to make sure no dangling resources are left
+#RAGFIT-OFF#     - cron: "30 2 * * *"
+#RAGFIT-OFF#   pull_request:
+#RAGFIT-OFF#     types: [labeled, unlabeled, synchronize, closed, reopened]
 
 jobs:
   deploy:

@@ -1,10 +1,13 @@
 name: continuous-delivery
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  push:
-    branches:
-      - dev
-      - release/*
-      - stable/*
+  workflow_dispatch:
+#RAGFIT-OFF#   push:
+#RAGFIT-OFF#     branches:
+#RAGFIT-OFF#       - dev
+#RAGFIT-OFF#       - release/*
+#RAGFIT-OFF#       - stable/*
 permissions:
   contents: read
 

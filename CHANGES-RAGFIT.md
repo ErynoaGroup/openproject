@@ -19,3 +19,13 @@ No tokens are created or simulated; `EnterpriseToken` itself is untouched.
 OpenProject contract or license (confirmed by the maintainers, 2026-10-10).
 GPLv3 §10 grants every recipient the right to modify and run the program; the code is GPLv3
 and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patches/0001-sso-unlock.patch`.
+
+## 2026-10-11 — CI: build only on release tags
+
+**What:** Images are built, signed and published only for release tags `vX.Y.Z-ragfit.N` or a manual run.
+- `.github/workflows/erynoa-build.yml`: build on push to `main` disabled (commented out, marker `#RAGFIT-OFF# `); triggers are tags `v*-ragfit.*` and `workflow_dispatch`; the tag must match `lib/open_project/version.rb`; new `guard` job (leak guard, patch check) runs before the build.
+- `.github/workflows/erynoa-upstream-sync.yml`: daily schedule unchanged, never builds; upstream tags `vX.Y.Z` do not match the release trigger.
+- Upstream build/publish workflows (`core-docker-release`, `hocuspocus-docker`, `packager`, `continuous-delivery`, `pullpreview`): automatic triggers disabled with the same marker, manual runs kept.
+- New: `justfile` (`just release`, `just ci`, `just ci-quick`, `just ci-triggers`), `ragfit/ci/leak-guard.sh`, `README-RAGFIT-CI.md` (how to re-enable triggers).
+
+**Why:** Builds only for deliberate releases on GitHub-hosted runners; synced upstream tags never publish upstream code under this repository.

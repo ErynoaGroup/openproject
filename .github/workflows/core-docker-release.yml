@@ -5,10 +5,12 @@ name: Core / Docker Tagged builds
 # forwards core `v*` tag pushes to that workflow via the GitHub workflow-dispatch API,
 # using the same token/mechanism as continuous-delivery.yml.
 
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+#RAGFIT-OFF#   push:
+#RAGFIT-OFF#     tags:
+#RAGFIT-OFF#       - 'v*.*.*'
   workflow_dispatch:
     inputs:
       tag:
