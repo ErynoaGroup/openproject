@@ -70,3 +70,9 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 **What:** The GitHub release notes state the license and the corresponding source (this repository at the release tag). `meta` resolves the upstream tag to its commit for annotated tags. `just release` already creates annotated tags.
 
 **Why:** GPLv3 §6: every published image names where its corresponding source is.
+
+## 2026-10-11 — CI: SLSA v1 provenance attestation
+
+**What:** `.github/workflows/erynoa-build.yml` (`publish` job) adds a keyless `cosign attest --type slsaprovenance1` next to the existing signature and SPDX attestation. The predicate is generated in the workflow and carries the image digest; the step refuses to run for anything but a release tag `ragfit-plan-vX.Y.Z`. The verify step also checks the `slsaprovenance1` attestation.
+
+**Why:** Deployments check signature, SPDX SBOM and SLSA provenance by digest before rollout.

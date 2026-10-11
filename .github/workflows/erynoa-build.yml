@@ -225,6 +225,48 @@ jobs:
           set -euo pipefail
           cosign sign --yes "$REF"
           cosign attest --yes --type spdxjson --predicate sbom.spdx.json "$REF"
+      - name: Attest SLSA provenance (keyless, release tags only)
+        env:
+          REF: ${{ env.IMAGE }}@${{ steps.manifest.outputs.digest }}
+          DIGEST: ${{ steps.manifest.outputs.digest }}
+          REL_REF: ${{ inputs.ref || github.ref_name }}
+          SRC_REF: ${{ github.ref }}
+          SRC_SHA: ${{ github.sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          tag="${REL_REF#refs/tags/}"
+          if [[ ! "$tag" =~ ^ragfit-plan-v[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$SRC_REF" != "refs/tags/$tag" ]]; then
+            echo "not a release tag build ($SRC_REF), refusing slsaprovenance1 attestation" >&2
+            exit 1
+          fi
+          # SLSA v1 provenance predicate; the in-toto subject is bound to $REF's digest by cosign,
+          # the digest is repeated in externalParameters so the predicate cannot be reused for another image.
+          jq -n \
+            --arg digest "$DIGEST" --arg image "$IMAGE" --arg tag "$tag" \
+            --arg ref "$SRC_REF" --arg sha "$SRC_SHA" --arg wf "$WORKFLOW_REF" \
+            --arg repo "$REPO_URL" --arg run "$RUN_URL" \
+            --arg finished "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+            {
+              buildDefinition: {
+                buildType: "https://actions.github.io/buildtypes/workflow/v1",
+                externalParameters: {
+                  workflow: { ref: $ref, repository: $repo, path: ".github/workflows/erynoa-build.yml" },
+                  releaseTag: $tag,
+                  image: { name: $image, digest: $digest }
+                },
+                internalParameters: { github: { event_name: env.GITHUB_EVENT_NAME, repository_id: env.GITHUB_REPOSITORY_ID, repository_owner_id: env.GITHUB_REPOSITORY_OWNER_ID } },
+                resolvedDependencies: [ { uri: ("git+" + $repo + "@" + $ref), digest: { gitCommit: $sha } } ]
+              },
+              runDetails: {
+                builder: { id: ($repo + "/" + $wf) },
+                metadata: { invocationId: $run, finishedOn: $finished }
+              }
+            }' > provenance.slsa1.json
+          jq -e --arg d "$DIGEST" '.buildDefinition.externalParameters.image.digest == $d' provenance.slsa1.json > /dev/null
+          cosign attest --yes --type slsaprovenance1 --predicate provenance.slsa1.json "$REF"
       - name: Verify
         env:
           REF: ${{ env.IMAGE }}@${{ steps.manifest.outputs.digest }}
@@ -235,6 +277,8 @@ jobs:
           cosign verify "$REF" --certificate-identity-regexp "$id" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
           cosign verify-attestation "$REF" --type spdxjson --certificate-identity-regexp "$id" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          cosign verify-attestation "$REF" --type slsaprovenance1 --certificate-identity-regexp "$id" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
           echo "cosign verify OK"
 
@@ -260,7 +304,7 @@ jobs:
             "" \
             "Upstream base: ${UPSTREAM}" \
             "" \
-            "Signed with cosign (keyless); SPDX SBOM attached as signed attestation. Changes: CHANGES-RAGFIT.md." \
+            "Signed with cosign (keyless); SPDX SBOM and SLSA v1 provenance attached as signed attestations. Changes: CHANGES-RAGFIT.md." \
             "" \
             "Licensed under GPLv3. Corresponding source: this repository at tag ${TAG} (source archives attached to this release)." > notes.md
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "RagFit | Plan v${VERSION}" --notes-file notes.md
