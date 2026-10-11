@@ -42,3 +42,9 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 - New: `ragfit/brand/` (unmodified RagFit logo files with `PROVENANCE.md`), `ragfit/ci/asset-guard.sh`, `ragfit/ci/notice-guard.sh`.
 
 **Why:** Product name RagFit | Plan; upstream name and logo are not used as product branding.
+
+## 2026-10-11 — Attribution, security policy, brand note
+
+**What:** Third-party credits moved to `ATTRIBUTION.md`; `SECURITY.md` replaced by a policy using GitHub private vulnerability reporting; README brand note on the RagFit name and logo; `ragfit/ci/notice-guard.sh` fails in CI when no upstream tag is available.
+
+**Why:** Keep required attributions in one place and give a reporting path for this repository.

@@ -27,10 +27,10 @@ RagFit consists of separate services that communicate only over network APIs:
 
 | Component | Role |
 |-----------|------|
-| RagFit | Source | Code hosting, identity and single sign-on (OpenID Connect provider), based on Forgejo |
-| RagFit | Plan | Project management (this repository) |
-| RagFit | Memory | Knowledge and retrieval service, based on Cognee |
-| RagFit | Docs | Documentation |
+| RagFit \| Source | Code hosting, identity and single sign-on (OpenID Connect provider), based on Forgejo |
+| RagFit \| Plan | Project management (this repository) |
+| RagFit \| Memory | Knowledge and retrieval service, based on Cognee |
+| RagFit \| Docs | Documentation |
 
 - **Login:** RagFit | Plan authenticates users only through RagFit | Source via OpenID Connect.
 - **Permissions:** project membership and roles are mirrored from RagFit | Source. RagFit | Source
@@ -106,14 +106,14 @@ The source code for every published image is the release tag it was built from, 
 Dockerfile and build workflows.
 
 "OpenProject" is a trademark of its owner and is used here only to describe the origin of this
-software. The RagFit logo in `ragfit/brand/` is not covered by the GPLv3 grant for the code; see
-[ragfit/brand/PROVENANCE.md](ragfit/brand/PROVENANCE.md).
+software.
+
+The RagFit name and logo are brand assets of Erynoa and are not licensed under the GPLv3. Redistributed or modified versions must remove them unless Erynoa grants permission. Provenance of the logo files: [ragfit/brand/PROVENANCE.md](ragfit/brand/PROVENANCE.md).
 
 ## Third-party credits
 
-**OpenProject icon font:** published and created by the OpenProject Foundation (OPF) under the
-[Creative Commons Attribution 3.0 Unported License](https://creativecommons.org/licenses/by/3.0/),
-with icons from the Minicons Free Vector Icons Pack and the User Interface Design framework, both by
-webalys. Attribution as required by the license: OpenProject Foundation, https://www.openproject.org.
+Third-party attributions, including the OpenProject icon font (CC BY 3.0), are listed in [ATTRIBUTION.md](ATTRIBUTION.md).
 
-**Icons:** Minicons by Vincent Le Moign (webalys).
+## Security
+
+See [SECURITY.md](SECURITY.md).
