@@ -64,3 +64,9 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 - The earlier tag `v17.9.1-ragfit.1` is kept and no longer matches the trigger.
 
 **Upstream base at this change:** openproject@v17.9.1/c7ec3ef.
+
+## 2026-10-11 — Release notes: corresponding source
+
+**What:** The GitHub release notes state the license and the corresponding source (this repository at the release tag). `meta` resolves the upstream tag to its commit for annotated tags. `just release` already creates annotated tags.
+
+**Why:** GPLv3 §6: every published image names where its corresponding source is.
