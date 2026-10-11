@@ -35,7 +35,7 @@ release bump:
     echo "pushed $t (previous: ${last:-none}) → GitHub Actions erynoa-build.yml builds, signs and publishes"
 
 # Fast checks (seconds): leak guard, workflow lint, patch series consistency
-ci-quick: leak-guard trigger-check lint-workflows patches asset-guard notice-guard
+ci-quick: leak-guard-test leak-guard trigger-check lint-workflows patches asset-guard notice-guard
 
 # Full local CI (no push, no publish): quick checks + Ruby/JS lint on our changes + license scan + image build + SBOM check
 ci: ci-quick lint licenses build sbom
@@ -43,6 +43,10 @@ ci: ci-quick lint licenses build sbom
 # Public-repo leak guard (hosts, tailnet, IPs, internal names, @-mentions)
 leak-guard:
     ragfit/ci/leak-guard.sh
+
+# Tests for the leak guard (allowed constructs neutralized, real hits on the same line still caught)
+leak-guard-test:
+    ragfit/ci/leak-guard-test.sh
 
 # No active automatic triggers (except allowed ones), only free GitHub-hosted runners
 trigger-check:

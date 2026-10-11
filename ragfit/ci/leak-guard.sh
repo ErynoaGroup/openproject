@@ -26,19 +26,29 @@ PATTERN="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_MENTION})|(${P_INTERNAL}
 # Code patches: Ruby instance variables (@provider) look like mentions → no mention check there
 PATTERN_CODE="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_INTERNAL})"
 
-# allowlist: digest/action pins (name@sha, @v1) are not mentions
-ALLOW='@sha256:|uses: [^ ]+@|users\.noreply\.github\.com'
+# Allowed constructs are NEUTRALIZED by replacement on the raw text, never used to skip whole
+# lines, so a digest/action pin/noreply address cannot hide a real hit on the same line:
+#   @sha256 followed by a non-alphanumeric char or end of line (img@sha256:<hex>), action pins
+#   (uses: owner/repo@ref) and GitHub noreply addresses. Runs BEFORE grep -n adds its N: prefix.
+neutralize() {
+  sed -E -e 's/@sha256([^A-Za-z0-9]|$)/_sha256_\1/g' \
+         -e 's/(uses:[[:space:]]+[^[:space:]@]+)@([^[:space:]]+)/\1_at_\2/g' \
+         -e 's/[A-Za-z0-9._+-]*@users\.noreply\.github\.com/noreply-address/g'
+}
 
 fail=0
 scan() { # stdin: text, $1: label, $2: optional pattern
   local hits
-  hits=$(grep -nEi "${2:-$PATTERN}" | grep -vEi "$ALLOW" || true)
+  hits=$(neutralize | grep -nEi "${2:-$PATTERN}" || true)
   if [ -n "$hits" ]; then echo "LEAK in $1:"; echo "$hits" | sed 's/^/  /'; fail=1; fi
 }
 
+# Test hook (ragfit/ci/leak-guard-test.sh): scan stdin with the real patterns, exit 1 on a hit
+if [ "${1:-}" = --stdin ]; then scan stdin; [ "$fail" = 0 ] || exit 1; exit 0; fi
+
 for p in "${OWN[@]}"; do
   for f in $(git ls-files -- "$p" 2>/dev/null); do
-    [ "$f" = ragfit/ci/leak-guard.sh ] && continue   # contains the patterns themselves
+    case "$f" in ragfit/ci/leak-guard.sh|ragfit/ci/leak-guard-test.sh) continue ;; esac   # patterns / test fixtures
     [ -f "$f" ] || { echo "missing in checkout (sparse?): $f" >&2; fail=1; continue; }
     case "$f" in *.patch) scan "$f" "$PATTERN_CODE" < "$f" ;; *) scan "$f" < "$f" ;; esac
   done
@@ -46,7 +56,7 @@ done
 
 base="${1:-$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)}"
 if [ -n "$base" ] && git rev-parse -q --verify "${base}^{commit}" >/dev/null && git merge-base "$base" HEAD >/dev/null 2>&1; then
-  git diff "${base}"...HEAD -- . ':!ragfit/ci/leak-guard.sh' ':!ragfit/patches' | grep -E '^\+[^+]' | scan "diff ${base}...HEAD (added lines)"
+  git diff "${base}"...HEAD -- . ':!ragfit/ci/leak-guard.sh' ':!ragfit/ci/leak-guard-test.sh' ':!ragfit/patches' | grep -E '^\+[^+]' | scan "diff ${base}...HEAD (added lines)"
   git diff "${base}"...HEAD -- ragfit/patches | grep -E '^\+[^+]' | scan "patches diff ${base}...HEAD" "$PATTERN_CODE"
   git log --format='%an <%ae>%n%B' "${base}"..HEAD | scan "commit messages ${base}..HEAD"
 else
