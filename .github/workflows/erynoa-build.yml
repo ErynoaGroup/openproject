@@ -123,11 +123,13 @@ jobs:
           upsha=$(printf '%s\n' "$refs" | awk '$2 ~ /\^\{\}$/ {print substr($1,1,7); f=1} END {}' | head -n1)
           [ -n "$upsha" ] || upsha=$(printf '%s\n' "$refs" | awk 'NR==1{print substr($1,1,7)}')
           [ -n "$upsha" ] || { echo "upstream tag v${up} not found" >&2; exit 1; }
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "upstream_version=v${up}" >> "$GITHUB_OUTPUT"
-          echo "upstream=openproject@v${up}/${upsha}" >> "$GITHUB_OUTPUT"
-          echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
-          echo "epoch=$(git log -1 --format=%ct HEAD)" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=${version}"
+            echo "upstream_version=v${up}"
+            echo "upstream=openproject@v${up}/${upsha}"
+            echo "short=$(git rev-parse --short=7 HEAD)"
+            echo "epoch=$(git log -1 --format=%ct HEAD)"
+          } >> "$GITHUB_OUTPUT"
           echo "version ${version}, upstream openproject@v${up}/${upsha}"
 
   build:
@@ -227,10 +229,12 @@ jobs:
         working-directory: /tmp/digests
         run: |
           set -euo pipefail
+          srcs=()
+          for d in *; do srcs+=("${IMAGE}@sha256:${d}"); done
           docker buildx imagetools create \
             -t "${IMAGE}:${{ needs.meta.outputs.version }}" \
             -t "${IMAGE}:sha-${{ needs.meta.outputs.short }}" \
-            $(printf "${IMAGE}@sha256:%s " *)
+            "${srcs[@]}"
           digest=$(docker buildx imagetools inspect "${IMAGE}:sha-${{ needs.meta.outputs.short }}" --format '{{json .Manifest.Digest}}' | tr -d '"')
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "### ${IMAGE}" >> "$GITHUB_STEP_SUMMARY"
