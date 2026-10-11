@@ -1,4 +1,4 @@
-# RagFit changes to OpenProject (ErynoaGroup/openproject → RagFit | Plan)
+# RagFit | Plan – changes to OpenProject
 
 This repository is a modified version of OpenProject (GPL-3.0-only, © OpenProject GmbH).
 Per GPLv3 §5(a), all modifications are listed here with date. Upstream notices are kept unchanged.
@@ -13,7 +13,7 @@ Only the OIDC module is affected; SAML and all other token-gated features are un
 - `modules/openid_connect/app/views/openid_connect/providers/index.html.erb`: add button no longer disabled, upsell banner removed.
 - `modules/openid_connect/lib/open_project/openid_connect/engine.rb`: admin menu entry no longer marked as token feature.
 
-No tokens are created or simulated; `EnterpriseToken` itself is untouched.
+No tokens are created or simulated; the license token class itself is untouched.
 
 **Why:** RagFit | Plan logs in through RagFit | Source (OIDC). ErynoaGroup holds no commercial
 OpenProject contract or license (confirmed by the maintainers, 2026-10-10).
@@ -32,3 +32,25 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 - New: `justfile` (`just release`, `just ci`, `just ci-quick`, `just ci-triggers`, `just trigger-check`), `ragfit/ci/leak-guard.sh`, `README-RAGFIT-CI.md` (how to re-enable triggers).
 
 **Why:** Builds only for deliberate releases on GitHub-hosted runners; synced upstream tags never publish upstream code under this repository.
+
+## 2026-10-11 — Rename to RagFit | Plan, new README
+
+**What:** Repository and image renamed from `openproject` to `ragfit-plan`.
+- `README.md`: replaced by the RagFit | Plan README (purpose, architecture, SSO patch, build, deployment, upstream sync, license, third-party credits). The upstream README is available in upstream releases.
+- `.github/workflows/erynoa-build.yml`: image `ghcr.io/erynoagroup/ragfit-plan`; SBOM artifact renamed; OCI title/description labels added; cosign identity check accepts the old and the new repository name. Build cache scopes unchanged.
+- `justfile`: local CI image name `ragfit-plan-ci`; `ci-quick` also runs `asset-guard` and `notice-guard`.
+- New: `ragfit/brand/` (unmodified RagFit logo files with `PROVENANCE.md`), `ragfit/ci/asset-guard.sh`, `ragfit/ci/notice-guard.sh`.
+
+**Why:** Product name RagFit | Plan; upstream name and logo are not used as product branding.
+
+## 2026-10-11 — Attribution, security policy, brand note
+
+**What:** Third-party credits moved to `ATTRIBUTION.md`; `SECURITY.md` replaced by a policy using GitHub private vulnerability reporting; README brand note on the RagFit name and logo; `ragfit/ci/notice-guard.sh` fails in CI when no upstream tag is available.
+
+**Why:** Keep required attributions in one place and give a reporting path for this repository.
+
+## 2026-10-11 — Guard job: asset and notice guards
+
+**What:** `erynoa-build.yml` guard job runs `ragfit/ci/asset-guard.sh` and `ragfit/ci/notice-guard.sh` (upstream tag from `lib/open_project/version.rb`, fetched shallow); `notice-guard.sh` ignores `-ragfit` release tags when looking up the upstream tag; README: RagFit | Source is based on Gitea.
+
+**Why:** License notices and brand assets are checked on every guarded run.

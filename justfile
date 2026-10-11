@@ -3,7 +3,7 @@
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-image := "openproject-ragfit-ci"
+image := "ragfit-plan-ci"
 
 # Show recipes
 default:
@@ -30,7 +30,7 @@ release version:
     echo "pushed v$v → GitHub Actions erynoa-build.yml builds, signs and publishes"
 
 # Fast checks (seconds): leak guard, workflow lint, patch series consistency
-ci-quick: leak-guard trigger-check lint-workflows patches
+ci-quick: leak-guard trigger-check lint-workflows patches asset-guard notice-guard
 
 # Full local CI (no push, no publish): quick checks + Ruby/JS lint on our changes + license scan + image build + SBOM check
 ci: ci-quick lint licenses build sbom
@@ -110,3 +110,11 @@ ci-triggers action="list" file="":
             echo "NOTE: trigger-check (guard/ci-quick) will fail until $f is added to ALLOWED in ragfit/ci/trigger-check.sh" >&2 ;;
       *)    echo "usage: just ci-triggers [list|on <workflow.yml>]" >&2; exit 1 ;;
     esac
+
+# Brand assets must stay byte-identical to the pinned source (ragfit/brand/PROVENANCE.md)
+asset-guard:
+    ragfit/ci/asset-guard.sh
+
+# Upstream license notices must stay unchanged; lists files changed vs. upstream
+notice-guard:
+    ragfit/ci/notice-guard.sh

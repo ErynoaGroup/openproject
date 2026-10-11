@@ -1,96 +1,120 @@
-# OpenProject
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/opf/openproject)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/m/opf/openproject)
-![GitHub branch checks state](https://img.shields.io/github/checks-status/opf/openproject/dev)
-[![Github Tests](https://github.com/opf/openproject/actions/workflows/test-core.yml/badge.svg?branch=dev)](https://github.com/opf/openproject/actions/workflows/test-core.yml)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="ragfit/brand/ragfit-by-en-stacked-white-transparent.png">
+    <img src="ragfit/brand/ragfit-by-en-stacked-transparent.png" alt="RagFit" width="240">
+  </picture>
+</p>
 
-**We empower teams to achieve great things together for the good of society.**
+# RagFit | Plan
 
-OpenProject is a web-based open source project management software for teams and organizations that require transparency, flexibility, and data sovereignty.
-Manage projects, portfolios, products, tasks, bugs, agile workflows, roadmaps, and team collaboration in a single platform. OpenProject can be self-hosted and is designed for organizations looking for an open source enterprise-ready alternative to tools such as Jira, MS Project, Monday, Asana, YouTrack while maintaining full control over their data and infrastructure.
+RagFit | Plan is the project management component of RagFit: work packages, boards, roadmaps,
+time tracking and documents for teams that run their own infrastructure.
 
-OpenProject is trusted by organizations worldwide, including enterprises, public institutions, and highly regulated industries.
+Based on OpenProject (GPLv3). This repository is a modified version; it is not affiliated with or
+endorsed by OpenProject GmbH. License and copyright notices are in [LICENSE](LICENSE),
+[COPYRIGHT](COPYRIGHT) and [COPYRIGHT_short](COPYRIGHT_short). All changes are listed with date in
+[CHANGES-RAGFIT.md](CHANGES-RAGFIT.md).
 
-![Screenshot of OpenProject, showing the GitHub tab on a work package](GitHub-tab-new.png)
+## Purpose
 
-**OpenProject's key features include:**
+RagFit | Plan provides planning and tracking inside RagFit. It keeps the upstream feature set and
+adds only what is needed to run as part of RagFit: single sign-on through RagFit | Source and a
+release-only build pipeline. Upstream releases are merged regularly.
 
-* [Project and portfolio management](https://www.openproject.org/collaboration-software-features/project-portfolio-management/)
-* [Agile boards, Kanban, Scrum, SAFe](https://www.openproject.org/collaboration-software-features/agile-project-management/)
-* [Project planning and scheduling with Gantt charts](https://www.openproject.org/collaboration-software-features/project-planning-scheduling/)
-* [Product and release planning](https://www.openproject.org/collaboration-software-features/product-development/)
-* [Task management and team collaboration](https://www.openproject.org/collaboration-software-features/task-management/)
-* [Time tracking, cost reporting, and budgeting](https://www.openproject.org/collaboration-software-features/time-tracking/)
-* [Bug tracking](https://www.openproject.org/collaboration-software-features/#bug-tracking)
-* [Team collaboration, wikis, forums, news](https://www.openproject.org/collaboration-software-features/team-collaboration/)
-* [Meeting agendas and meeting minutes](https://www.openproject.org/collaboration-software-features/meeting-management/)
-* [Integrations: Nextcloud, XWiki, GitHub, GitLab, and more](https://www.openproject.org/integrations/)
+## Architecture
 
-More information can be found on our [website](https://www.openproject.org).
+RagFit consists of separate services that communicate only over network APIs:
 
-## Start now with OpenProject
+| Component | Role |
+|-----------|------|
+| RagFit \| Source | Code hosting, identity and single sign-on (OpenID Connect provider), based on Gitea |
+| RagFit \| Plan | Project management (this repository) |
+| RagFit \| Memory | Knowledge and retrieval service, based on Cognee |
+| RagFit \| Docs | Documentation |
 
-- **Free Trial**: [Start a 14-days free trial of OpenProject](https://start.openproject.com/).
-- **Community Edition**, free of charge: Download OpenProject and get started with the self-hosted Community edition. If you want to run an instance of OpenProject in production (or for evaluation), refer to our in-depth [installation guides](https://www.openproject.org/download-and-installation/).
-- **Enterprise Edition**: Sign up for the Enterprise version, choose between cloud or on-premises and benefit from comprehensive support and Enterprise add-ons.
-- **Documentation**: Explore our [comprehensive documentation](https://www.openproject.org/docs/) to help you get up and running quickly.
-- **Training**: [Book one of our training or consulting offers](https://www.openproject.org/training-and-consulting/#training-signup) to get your team on board in no time.
+- **Login:** RagFit | Plan authenticates users only through RagFit | Source via OpenID Connect.
+- **Permissions:** project membership and roles are mirrored from RagFit | Source. RagFit | Source
+  is the single place where access is granted or revoked.
+- **No shared code:** the components do not share source code; each keeps its own license.
 
-## Report bugs
+## Single sign-on patch
 
-You found a bug? Please [report it](https://www.openproject.org/docs/development/report-a-bug/) to our [OpenProject Community](https://community.openproject.org/projects/openproject). Thank you!
+Upstream OpenProject restricts the setup of OpenID Connect providers to its commercial edition.
+RagFit | Plan removes that restriction for OpenID Connect only, as permitted by the GPLv3
+(sections 7 and 10). The change is kept small and separate:
 
-## Contribute
+- Patch: [ragfit/patches/0001-sso-unlock.patch](ragfit/patches/0001-sso-unlock.patch), details in
+  [CHANGES-RAGFIT.md](CHANGES-RAGFIT.md).
+- Only OpenID Connect provider setup and login are affected. SAML and all other features of the
+  commercial edition remain restricted exactly as upstream.
+- No license tokens are created, simulated or distributed; the token handling itself is unchanged.
+- RagFit | Plan does not offer, claim or contain any other features of the commercial edition, and no
+  support from the upstream vendor.
 
-OpenProject is supported by its Community members, both companies and individuals.
+The patch is re-checked against every upstream release before it is merged.
 
-We are always looking for new members to our Community, so if you are interested in improving OpenProject we would be glad to welcome and support you getting into the code. There are guides as well, e.g. a [Quick Start for Developers](https://www.openproject.org/docs/development/development-environment/), but don't hesitate to simply [contact us](https://www.openproject.org/contact) if you have questions.
+## Build and release
 
-Working on OpenProject comes with the satisfaction of working on a widely used open source application.
+Images are built only for deliberate releases:
 
-Also, if you do not want to be limited to working on open source in your free time, OpenProject GmbH, the company contributing to the OpenProject development, [is hiring](https://www.openproject.org/career/).
+- **Trigger:** release tags `vX.Y.Z-ragfit.N` (for example `v17.9.1-ragfit.1`) or a manual run.
+  Pushes and pull requests do not build. The tag version must match `lib/open_project/version.rb`.
+- **Runners:** GitHub-hosted runners only.
+- **Platforms:** multi-architecture images (`linux/amd64`, `linux/arm64`).
+- **Supply chain:** each image is signed with cosign (keyless), and an SPDX SBOM is generated and
+  attached as a signed attestation.
+- **Image:** `ghcr.io/erynoagroup/ragfit-plan`. Deploy by digest, not by tag.
 
+Local commands (see [justfile](justfile) and [README-RAGFIT-CI.md](README-RAGFIT-CI.md)):
 
-## Stay in contact
+```sh
+just ci-quick          # leak guard, workflow lint, patch series, asset and notice guards
+just ci                # full local CI incl. image build without push and SBOM check
+just release 17.9.1-ragfit.1   # create and push the release tag; CI builds, signs and publishes
+```
 
-Here you can find our [contact information](https://www.openproject.org/contact/). As we regularly update OpenProject, we recommend staying in touch – here is where you can find us:
+Verify an image:
 
-- [OpenProject Community](https://www.openproject.org/blog/community-instance/) with [forum discussions](https://community.openproject.org/projects/openproject/forums): The open instance where we develop our features – transparent and open for discussions, bug reports or feature requests.
-- [LinkedIn](https://www.linkedin.com/company/18706985)
-- [Reddit](https://www.reddit.com/r/openproject/)
-- [Fosstodon](https://fosstodon.org/@openproject)
-- [Bluesky](https://bsky.app/profile/openproject.bsky.social)
+```sh
+cosign verify ghcr.io/erynoagroup/ragfit-plan@sha256:<digest> \
+  --certificate-identity-regexp '^https://github.com/ErynoaGroup/(openproject|ragfit-plan)/\.github/workflows/erynoa-build\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
 
-## Security / responsible disclosure
+## Deployment
 
-We take security very seriously at OpenProject. We value any kind of feedback that
-will keep our Community secure. If you happen to come across a security issue we urge
-you to disclose it to us privately to allow our users and Community enough time to
-upgrade. Security issues will always take precedence over anything else in the pipeline.
+RagFit | Plan is deployed with Argo CD from a separate configuration repository. That configuration
+references the image by digest and supplies environment-specific values (hostnames, OpenID Connect
+client, database, storage) from secrets at runtime. This repository contains no environment-specific
+configuration.
 
-For more information on how to disclose a security vulnerability, [please see this page](docs/security-and-privacy/statement-on-security/README.md).
+## Upstream sync
+
+A scheduled workflow fetches upstream releases daily and opens a pull request for each new release.
+It never builds or publishes images; upstream tags do not match the release trigger. Each sync
+pull request is reviewed, the single sign-on patch is re-checked, and a release tag is set
+afterwards.
 
 ## License
 
-OpenProject is licensed under the terms of the GNU General Public License version 3.
-See [COPYRIGHT](COPYRIGHT) and [LICENSE](LICENSE) files for details.
+RagFit | Plan is licensed under the GNU General Public License version 3 (GPLv3), like the work it is
+based on; parts are available under GPLv2 or later. See [LICENSE](LICENSE), [COPYRIGHT](COPYRIGHT)
+and [COPYRIGHT_short](COPYRIGHT_short), which are kept unchanged, including the notices of the
+ChiliProject and Redmine projects that OpenProject derives from. File headers of upstream files are
+kept unchanged. Modified files are listed in [CHANGES-RAGFIT.md](CHANGES-RAGFIT.md).
 
-## Credits
+The source code for every published image is the release tag it was built from, including the
+Dockerfile and build workflows.
 
-### Icons
+"OpenProject" is a trademark of its owner and is used here only to describe the origin of this
+software.
 
-Thanks to Vincent Le Moign and his fabulous Minicons icons on [webalys.com](http://www.webalys.com/minicons/icons-free-pack.php).
+The RagFit name and logo are brand assets of Erynoa and are not licensed under the GPLv3. Redistributed or modified versions must remove them unless Erynoa grants permission. Provenance of the logo files: [ragfit/brand/PROVENANCE.md](ragfit/brand/PROVENANCE.md).
 
-### OpenProject icon font
+## Third-party credits
 
-Published and created by the OpenProject Foundation (OPF) under [Creative Commons Attribution 3.0 Unported License](http://creativecommons.org/licenses/by/3.0/)
-with icons from the following sources
-[Minicons Free Vector Icons Pack](http://www.webalys.com/minicons) and
-[User Interface Design framework](http://www.webalys.com/design-interface-application-framework.php) both by webalys
+Third-party attributions, including the OpenProject icon font (CC BY 3.0), are listed in [ATTRIBUTION.md](ATTRIBUTION.md).
 
-**Creative Commons License**
+## Security
 
-OpenProject Icon Font by the OpenProject Foundation (OPF) is licensed under Creative Commons Attribution 3.0 Unported License
-and Free for both personal and commercial use. You can copy, adapt, remix, distribute or transmit it.
-
-Under this condition: provide a mention of the "OpenProject Foundation" and a link back to OpenProject www.openproject.org.
+See [SECURITY.md](SECURITY.md).
