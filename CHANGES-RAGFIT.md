@@ -54,3 +54,13 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 **What:** `erynoa-build.yml` guard job runs `ragfit/ci/asset-guard.sh` and `ragfit/ci/notice-guard.sh` (upstream tag from `lib/open_project/version.rb`, fetched shallow); `notice-guard.sh` ignores `-ragfit` release tags when looking up the upstream tag; README: RagFit | Source is based on Gitea.
 
 **Why:** License notices and brand assets are checked on every guarded run.
+
+## 2026-10-11 — Release versioning: own SemVer
+
+**What:** Release tags are `ragfit-plan-vX.Y.Z` (own semantic versioning, first release `0.1.0`), set by `just release <major|minor|patch>`.
+- `.github/workflows/erynoa-build.yml`: trigger `ragfit-plan-v*`; `meta` validates `ragfit-plan-vX.Y.Z` and no longer requires the tag to match `lib/open_project/version.rb`; image tag `ragfit-plan:X.Y.Z`; OCI labels `org.opencontainers.image.base.name` and `ragfit.upstream` record the upstream base; new `release` job creates the GitHub release "RagFit | Plan vX.Y.Z" with image digest and upstream base.
+- `ragfit/ci/trigger-check.sh`: allowlist `ragfit-plan-v*`. `ragfit/ci/notice-guard.sh`: compares only against upstream `vX.Y.Z` tags.
+- `justfile`, `README-RAGFIT-CI.md`, `README.md`: new release command and convention.
+- The earlier tag `v17.9.1-ragfit.1` is kept and no longer matches the trigger.
+
+**Upstream base at this change:** openproject@v17.9.1/c7ec3ef.

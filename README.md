@@ -57,20 +57,21 @@ The patch is re-checked against every upstream release before it is merged.
 
 Images are built only for deliberate releases:
 
-- **Trigger:** release tags `vX.Y.Z-ragfit.N` (for example `v17.9.1-ragfit.1`) or a manual run.
-  Pushes and pull requests do not build. The tag version must match `lib/open_project/version.rb`.
+- **Trigger:** release tags `ragfit-plan-vX.Y.Z` (own semantic versioning, starting at `0.1.0`) or a
+  manual run. Pushes and pull requests do not build. The upstream base version is recorded in the
+  release notes, the image labels and CHANGES-RAGFIT.md.
 - **Runners:** GitHub-hosted runners only.
 - **Platforms:** multi-architecture images (`linux/amd64`, `linux/arm64`).
 - **Supply chain:** each image is signed with cosign (keyless), and an SPDX SBOM is generated and
   attached as a signed attestation.
-- **Image:** `ghcr.io/erynoagroup/ragfit-plan`. Deploy by digest, not by tag.
+- **Image:** `ghcr.io/erynoagroup/ragfit-plan:X.Y.Z`. Deploy by digest, not by tag.
 
 Local commands (see [justfile](justfile) and [README-RAGFIT-CI.md](README-RAGFIT-CI.md)):
 
 ```sh
 just ci-quick          # leak guard, workflow lint, patch series, asset and notice guards
 just ci                # full local CI incl. image build without push and SBOM check
-just release 17.9.1-ragfit.1   # create and push the release tag; CI builds, signs and publishes
+just release minor    # bump major|minor|patch, push ragfit-plan-vX.Y.Z; CI builds, signs and publishes
 ```
 
 Verify an image:

@@ -3,7 +3,8 @@
 # and prints the files changed relative to upstream (input for CHANGES-RAGFIT.md).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
-base=${UPSTREAM_REF:-$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' --exclude '*-ragfit*' --exclude '*-*' 2>/dev/null || true)}
+base=${UPSTREAM_REF:-$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' --exclude '*-*' --exclude 'ragfit-plan-v*' 2>/dev/null || true)}
+# Upstream tags only (vX.Y.Z); own release tags ragfit-plan-v* and legacy vX.Y.Z-ragfit.N are excluded.
 if [[ -z "$base" ]]; then
   if [[ "${CI:-}" == "true" ]]; then echo "notice-guard: no upstream tag found in CI (fetch tags or set UPSTREAM_REF)" >&2; exit 1; fi
   echo "notice-guard: WARNING no upstream tag found (shallow clone?); skipping" >&2; exit 0

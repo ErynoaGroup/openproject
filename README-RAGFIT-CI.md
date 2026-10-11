@@ -1,10 +1,16 @@
 # RagFit | Plan – CI and releases
 
 Images are built, signed and published **only** by `.github/workflows/erynoa-build.yml`, on GitHub-hosted runners, for:
-- a pushed release tag `vX.Y.Z-ragfit.N` (`just release X.Y.Z-ragfit.N`), or
+- a pushed release tag `ragfit-plan-vX.Y.Z` (`just release <major|minor|patch>`), or
 - a manual run (`workflow_dispatch`, input `ref` = release tag).
 
-Plain upstream tags `vX.Y.Z` (pushed by the daily upstream sync) do **not** match `v*-ragfit.*` and never build.
+Versions are our own SemVer (first release `0.1.0`); `just release` bumps from the latest `ragfit-plan-v*` tag.
+The upstream base (for example `openproject@v17.9.1/c7ec3ef`) is recorded only in the release notes, the OCI labels
+`org.opencontainers.image.base.name` and `ragfit.upstream`, and `CHANGES-RAGFIT.md`.
+Each release publishes `ghcr.io/erynoagroup/ragfit-plan:X.Y.Z` (deploy by digest) and a GitHub release "RagFit | Plan vX.Y.Z".
+
+Upstream tags `vX.Y.Z` (pushed by the daily upstream sync) do **not** match `ragfit-plan-v*` and never build.
+The legacy tag `v17.9.1-ragfit.1` is kept; it no longer matches the trigger.
 `erynoa-upstream-sync.yml` keeps its daily schedule and only opens a sync PR; merging it does not build.
 
 ## Local checks
@@ -14,7 +20,7 @@ Plain upstream tags `vX.Y.Z` (pushed by the daily upstream sync) do **not** matc
 ## Disabled triggers and how to re-enable them
 All automatic triggers (`push`, `pull_request`, `pull_request_target`, `schedule`, `issue_comment`, …) are
 **commented out, not deleted**, in **every** workflow except the two allowed ones:
-- `erynoa-build.yml`: only `push` of tags `v*-ragfit.*` (push to `main` is disabled with the marker),
+- `erynoa-build.yml`: only `push` of tags `ragfit-plan-v*` (push to `main` is disabled with the marker),
 - `erynoa-upstream-sync.yml`: daily `schedule`.
 Each disabled line starts with the marker `#RAGFIT-OFF# `. Every workflow keeps (or got) `workflow_dispatch`, so it can still be run by hand.
 
@@ -36,14 +42,14 @@ Leak guard in CI: the guard job scans only our own files (shallow checkout, no u
 scans run with `just ci-quick` in a clone with tags. CI fails if the repository secret `RAGFIT_LEAK_EXTRA` is empty.
 
 Notes:
-- Re-enabling push-to-`main` in `erynoa-build.yml` also needs the `meta` job to accept non-tag refs (it currently rejects anything that is not `vX.Y.Z-ragfit.N`).
+- Re-enabling push-to-`main` in `erynoa-build.yml` also needs the `meta` job to accept non-tag refs (it currently rejects anything that is not `ragfit-plan-vX.Y.Z`).
 - Upstream publish workflows target upstream registries/infrastructure and need upstream secrets; re-enable only with a clear reason.
 
 ## Guard-only run
 
 `erynoa-build` has a `workflow_dispatch` input `guard_only` (default `true`). A manual run with the default only runs
-the guard job (leak guard, trigger check, patch check) on the given ref; nothing is built or pushed:
+the guard job (leak guard, trigger check, asset and notice guards, patch check) on the given ref; nothing is built or pushed:
 
     gh workflow run erynoa-build.yml --ref <branch> -f ref=<branch>
 
-A manual release build needs `-f ref=vX.Y.Z-ragfit.N -f guard_only=false`. Tag pushes always build.
+A manual release build needs `-f ref=ragfit-plan-vX.Y.Z -f guard_only=false`. Tag pushes always build.

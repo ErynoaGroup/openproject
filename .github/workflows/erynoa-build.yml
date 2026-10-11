@@ -1,18 +1,18 @@
 name: erynoa-build
 
 # Build/sign/publish ONLY for releases (no push/pull_request triggers).
-# Release tags have the form vX.Y.Z-ragfit.N (set by `just release`). Plain upstream tags vX.Y.Z,
-# which the upstream sync pushes into this repo, deliberately do NOT match.
+# Release tags have the form ragfit-plan-vX.Y.Z (own SemVer, set by `just release <major|minor|patch>`).
+# Upstream tags vX.Y.Z, which the upstream sync pushes into this repo, deliberately do NOT match.
 # GitHub-hosted runners only.
 # Disabled (not deleted): build on every push to main. Re-enable: `just ci-triggers on erynoa-build.yml`.
 on:
   push:
-    tags: ["v*-ragfit.*"]
+    tags: ["ragfit-plan-v*"]
 #RAGFIT-OFF#     branches: [main]
   workflow_dispatch:
     inputs:
       ref:
-        description: "Release tag to build (vX.Y.Z-ragfit.N), or a branch for guard_only"
+        description: "Release tag to build (ragfit-plan-vX.Y.Z), or a branch for guard_only"
         required: true
       guard_only:
         description: "Run only the guard job (no build, no push). Set false to build and publish the tag."
@@ -75,6 +75,8 @@ jobs:
       version: ${{ steps.v.outputs.version }}
       short: ${{ steps.v.outputs.short }}
       epoch: ${{ steps.v.outputs.epoch }}
+      upstream: ${{ steps.v.outputs.upstream }}
+      upstream_version: ${{ steps.v.outputs.upstream_version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,18 +88,20 @@ jobs:
           REF_NAME: ${{ inputs.ref || github.ref_name }}
         run: |
           set -euo pipefail
-          # Release version = tag (vX.Y.Z-ragfit.N); X.Y.Z must match upstream lib/open_project/version.rb.
-          [[ "$REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-ragfit\.([0-9]+)$ ]] || { echo "not a release tag: $REF_NAME" >&2; exit 1; }
-          base="${BASH_REMATCH[1]}"
+          # Release version = own SemVer from the tag ragfit-plan-vX.Y.Z (no upstream version in the tag).
+          [[ "$REF_NAME" =~ ^ragfit-plan-v([0-9]+\.[0-9]+\.[0-9]+)$ ]] || { echo "not a release tag: $REF_NAME" >&2; exit 1; }
+          version="${BASH_REMATCH[1]}"
+          # Upstream base (labels and release notes only): lib/open_project/version.rb + upstream tag commit.
           f=lib/open_project/version.rb
-          major=$(sed -nE 's/^ *MAJOR = ([0-9]+).*/\1/p' $f)
-          minor=$(sed -nE 's/^ *MINOR = ([0-9]+).*/\1/p' $f)
-          patch=$(sed -nE 's/^ *PATCH = ([0-9]+).*/\1/p' $f)
-          [ "$base" = "${major}.${minor}.${patch}" ] || { echo "tag $REF_NAME != version.rb ${major}.${minor}.${patch}" >&2; exit 1; }
-          echo "version=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          up="$(sed -nE 's/^ *MAJOR = ([0-9]+).*/\1/p' $f).$(sed -nE 's/^ *MINOR = ([0-9]+).*/\1/p' $f).$(sed -nE 's/^ *PATCH = ([0-9]+).*/\1/p' $f)"
+          upsha=$(git ls-remote origin "refs/tags/v${up}^{}" "refs/tags/v${up}" | awk 'NR==1{print substr($1,1,7)}')
+          [ -n "$upsha" ] || { echo "upstream tag v${up} not found" >&2; exit 1; }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "upstream_version=v${up}" >> "$GITHUB_OUTPUT"
+          echo "upstream=openproject@v${up}/${upsha}" >> "$GITHUB_OUTPUT"
           echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
           echo "epoch=$(git log -1 --format=%ct HEAD)" >> "$GITHUB_OUTPUT"
-          echo "version ${REF_NAME#v}"
+          echo "version ${version}, upstream openproject@v${up}/${upsha}"
 
   build:
     needs: meta
@@ -146,7 +150,9 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.meta.outputs.version }}-slim
+            org.opencontainers.image.version=${{ needs.meta.outputs.version }}
+            org.opencontainers.image.base.name=openproject:${{ needs.meta.outputs.upstream_version }}
+            ragfit.upstream=${{ needs.meta.outputs.upstream }}
             org.opencontainers.image.licenses=GPL-3.0-only
             org.opencontainers.image.title=RagFit | Plan
             org.opencontainers.image.description=RagFit | Plan, based on OpenProject (GPLv3); modifications listed in CHANGES-RAGFIT.md
@@ -169,6 +175,8 @@ jobs:
   publish:
     needs: [meta, build]
     runs-on: ubuntu-24.04
+    outputs:
+      digest: ${{ steps.manifest.outputs.digest }}
     permissions:
       contents: read
       packages: write
@@ -191,7 +199,7 @@ jobs:
         run: |
           set -euo pipefail
           docker buildx imagetools create \
-            -t "${IMAGE}:${{ needs.meta.outputs.version }}-slim" \
+            -t "${IMAGE}:${{ needs.meta.outputs.version }}" \
             -t "${IMAGE}:sha-${{ needs.meta.outputs.short }}" \
             $(printf "${IMAGE}@sha256:%s " *)
           digest=$(docker buildx imagetools inspect "${IMAGE}:sha-${{ needs.meta.outputs.short }}" --format '{{json .Manifest.Digest}}' | tr -d '"')
@@ -226,3 +234,28 @@ jobs:
           cosign verify-attestation "$REF" --type spdxjson --certificate-identity-regexp "$id" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
           echo "cosign verify OK"
+
+  release:
+    needs: [meta, publish]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: GitHub release "RagFit | Plan vX.Y.Z"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ragfit-plan-v${{ needs.meta.outputs.version }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          UPSTREAM: ${{ needs.meta.outputs.upstream }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' \
+            "Image: \`${IMAGE}:${VERSION}\`" \
+            "Digest: \`${IMAGE}@${DIGEST}\`" \
+            "" \
+            "Upstream base: ${UPSTREAM}" \
+            "" \
+            "Signed with cosign (keyless); SPDX SBOM attached as signed attestation. Changes: CHANGES-RAGFIT.md." > notes.md
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "RagFit | Plan v${VERSION}" --notes-file notes.md
