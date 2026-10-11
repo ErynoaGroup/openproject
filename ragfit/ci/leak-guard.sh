@@ -50,6 +50,8 @@ scan() { # stdin: text, $1: label, $2: optional pattern
 grep0() { grep "$@" || [ $? -eq 1 ]; }
 # paths: split on / so a mention-like path segment (docs/@alice/) is matched like a word
 paths() { sed 's#/# #g'; }
+# added_lines: content of added lines inside hunks only (a line whose content starts with '+' shows as '++...'; '+++ ' file headers are outside hunks)
+added_lines() { awk '/^diff --git /{h=0; next} /^@@ /{h=1; next} h && /^\+/{print substr($0,2)}'; }
 
 # Test hook (ragfit/ci/leak-guard-test.sh): scan stdin with the real patterns, exit 1 on a hit
 if [ "${1:-}" = --stdin ]; then scan stdin; [ "$fail" = 0 ] || exit 1; exit 0; fi
@@ -68,9 +70,9 @@ scan "own file paths" < <(printf '%s\n' "${own_files[@]}" | paths)
 base="${1:-$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)}"
 if [ -n "$base" ] && git rev-parse -q --verify "${base}^{commit}" >/dev/null && git merge-base "$base" HEAD >/dev/null 2>&1; then
   # strip the diff "+" so a mention at the start of an added line still matches
-  added=$(git diff "${base}"...HEAD -- . ':!ragfit/ci/leak-guard.sh' ':!ragfit/ci/leak-guard-test.sh' ':!ragfit/patches' | grep0 -E '^\+[^+]' | sed 's/^+//')
+  added=$(git diff "${base}"...HEAD -- . ':!ragfit/ci/leak-guard.sh' ':!ragfit/ci/leak-guard-test.sh' ':!ragfit/patches' | added_lines)
   scan "diff ${base}...HEAD (added lines)" <<<"$added"
-  added=$(git diff "${base}"...HEAD -- ragfit/patches | grep0 -E '^\+[^+]' | sed 's/^+//')
+  added=$(git diff "${base}"...HEAD -- ragfit/patches | added_lines)
   scan "patches diff ${base}...HEAD" "$PATTERN_CODE" <<<"$added"
   changed=$(git diff --name-only "${base}"...HEAD)
   scan "changed paths ${base}...HEAD" < <(printf '%s\n' "$changed" | paths)

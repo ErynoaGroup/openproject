@@ -47,6 +47,8 @@ fresh; mkdir -p "$tmp/r/docs"; echo ok > "$tmp/r/docs/a.md"; commit 'docs: thank
 run 1 'leak in commit message'
 fresh; mkdir -p "$tmp/r/docs/@alice"; echo ok > "$tmp/r/docs/@alice/a.md"; commit 'docs: path'
 run 1 'leak in path'
+fresh; mkdir -p "$tmp/r/src"; printf 'x\n+ cc @alice\n' > "$tmp/r/src/a.rb"; commit 'src: plus line'
+run 1 'leak in added line starting with +'
 [ "$rc_all" -eq 0 ] || rc=1
 [ $rc -eq 0 ] && echo "leak-guard tests: OK"
 exit $rc
