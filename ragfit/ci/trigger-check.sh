@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fails if any workflow has an active automatic trigger or a runner that is not a free GitHub-hosted label.
 # Allowed automatic triggers (exhaustive):
-#   erynoa-build.yml:          push with tags only (v*-ragfit.*), no branches/paths
+#   erynoa-build.yml:          push with tags only (ragfit-plan-v*), no branches/paths
 #   erynoa-upstream-sync.yml:  schedule
 # Manual triggers (workflow_dispatch, workflow_call) are always allowed.
 set -euo pipefail
@@ -38,8 +38,8 @@ for path in sorted(glob.glob(".github/workflows/*.y*ml")):
             errors.append(f"{name}: active automatic trigger '{trig}'")
         elif name == "erynoa-build.yml":
             cfg = cfg or {}
-            if set(cfg) - {"tags"} or cfg.get("tags") != ["v*-ragfit.*"]:
-                errors.append(f"{name}: push trigger must be tags ['v*-ragfit.*'] only, got {cfg}")
+            if set(cfg) - {"tags"} or cfg.get("tags") != ["ragfit-plan-v*"]:
+                errors.append(f"{name}: push trigger must be tags ['ragfit-plan-v*'] only, got {cfg}")
     for job_id, job in (doc.get("jobs") or {}).items():
         ro = job.get("runs-on") if isinstance(job, dict) else None
         if ro is None:

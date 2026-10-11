@@ -1,5 +1,5 @@
 # RagFit | Plan (OpenProject fork). Public repo: never put hosts, tailnet data, IPs, internal names or @-mentions here.
-# Images are built ONLY by GitHub Actions (erynoa-build.yml) on release tags vX.Y.Z-ragfit.N. No local/server publishing.
+# Images are built ONLY by GitHub Actions (erynoa-build.yml) on release tags ragfit-plan-vX.Y.Z. No local/server publishing.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -9,25 +9,30 @@ image := "ragfit-plan-ci"
 default:
     just --list
 
-# Cut a release: just release 17.9.1-ragfit.1  → annotated tag v17.9.1-ragfit.1 on main, pushed (triggers CI build/sign/publish)
-release version:
+# Cut a release: just release <major|minor|patch>  → bumps from the latest ragfit-plan-v* tag (first release: 0.1.0),
+# creates annotated tag ragfit-plan-vX.Y.Z on main and pushes it (triggers CI build/sign/publish).
+# Own SemVer; the upstream base is recorded in release notes, OCI labels and CHANGES-RAGFIT.md, not in the tag.
+release bump:
     #!/usr/bin/env bash
     set -euo pipefail
-    v="{{version}}"; v="${v#v}"
-    [[ "$v" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-ragfit\.([0-9]+)$ ]] || { echo "version must be X.Y.Z-ragfit.N" >&2; exit 1; }
-    base="${BASH_REMATCH[1]}"
-    f=lib/open_project/version.rb
-    cur="$(sed -nE 's/^ *MAJOR = ([0-9]+).*/\1/p' $f).$(sed -nE 's/^ *MINOR = ([0-9]+).*/\1/p' $f).$(sed -nE 's/^ *PATCH = ([0-9]+).*/\1/p' $f)"
-    [ "$base" = "$cur" ] || { echo "version.rb is $cur, not $base" >&2; exit 1; }
+    case "{{bump}}" in major|minor|patch) ;; *) echo "usage: just release <major|minor|patch>" >&2; exit 1 ;; esac
     [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || { echo "release only from main" >&2; exit 1; }
     git diff --quiet && git diff --cached --quiet || { echo "working tree not clean" >&2; exit 1; }
     git fetch -q origin main
+    git fetch -q origin 'refs/tags/ragfit-plan-v*:refs/tags/ragfit-plan-v*'
     [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "HEAD != origin/main" >&2; exit 1; }
-    git rev-parse -q --verify "refs/tags/v$v" >/dev/null && { echo "tag v$v exists" >&2; exit 1; }
+    last=$(git tag -l 'ragfit-plan-v*' | sed -nE 's/^ragfit-plan-v([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' | sort -V | tail -n1)
+    if [ -z "$last" ]; then v=0.1.0
+    else
+      IFS=. read -r ma mi pa <<< "$last"
+      case "{{bump}}" in major) v="$((ma+1)).0.0" ;; minor) v="$ma.$((mi+1)).0" ;; patch) v="$ma.$mi.$((pa+1))" ;; esac
+    fi
+    t="ragfit-plan-v$v"
+    git rev-parse -q --verify "refs/tags/$t" >/dev/null && { echo "tag $t exists" >&2; exit 1; }
     just ci-quick
-    git tag -a "v$v" -m "RagFit | Plan $v"
-    git push origin "refs/tags/v$v"
-    echo "pushed v$v → GitHub Actions erynoa-build.yml builds, signs and publishes"
+    git tag -a "$t" -m "RagFit | Plan v$v"
+    git push origin "refs/tags/$t"
+    echo "pushed $t (previous: ${last:-none}) → GitHub Actions erynoa-build.yml builds, signs and publishes"
 
 # Fast checks (seconds): leak guard, workflow lint, patch series consistency
 ci-quick: leak-guard trigger-check lint-workflows patches asset-guard notice-guard
