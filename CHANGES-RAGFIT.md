@@ -13,7 +13,7 @@ Only the OIDC module is affected; SAML and all other token-gated features are un
 - `modules/openid_connect/app/views/openid_connect/providers/index.html.erb`: add button no longer disabled, upsell banner removed.
 - `modules/openid_connect/lib/open_project/openid_connect/engine.rb`: admin menu entry no longer marked as token feature.
 
-No tokens are created or simulated; `EnterpriseToken` itself is untouched.
+No tokens are created or simulated; the license token class itself is untouched.
 
 **Why:** RagFit | Plan logs in through RagFit | Source (OIDC). ErynoaGroup holds no commercial
 OpenProject contract or license (confirmed by the maintainers, 2026-10-10).

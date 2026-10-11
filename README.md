@@ -48,7 +48,8 @@ RagFit | Plan removes that restriction for OpenID Connect only, as permitted by 
 - Only OpenID Connect provider setup and login are affected. SAML and all other features of the
   commercial edition remain restricted exactly as upstream.
 - No license tokens are created, simulated or distributed; the token handling itself is unchanged.
-- RagFit | Plan does not offer, claim or contain any OpenProject Enterprise features or support.
+- RagFit | Plan does not offer, claim or contain any other features of the commercial edition, and no
+  support from the upstream vendor.
 
 The patch is re-checked against every upstream release before it is merged.
 
