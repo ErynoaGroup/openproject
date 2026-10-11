@@ -28,7 +28,8 @@ trigger and on any runner label that is not a free GitHub-hosted runner.
 - A deliberately re-enabled trigger must also be added to `ALLOWED` in `ragfit/ci/trigger-check.sh`, otherwise the guard fails.
 
 Runners: free GitHub-hosted runners only. `test-core.yml` upstream uses a third-party runner service; here it runs on
-`ubuntu-latest` (original runner lines kept with the marker `#RAGFIT-RUNNER# `). The job is still gated to the upstream
+`ubuntu-latest` (original runner lines kept with the marker `#RAGFIT-RUNNER# `). The third-party `runs-on/action` step is disabled and
+`runs-on/cache` is replaced by `actions/cache` (same inputs); the originals are kept with the same marker. The job is still gated to the upstream
 organisation by its `if:` condition and its triggers are disabled, so it does not run in this fork unless adapted.
 
 Leak guard in CI: the guard job scans only our own files (shallow checkout, no upstream tags); diff and commit-message
