@@ -19,6 +19,9 @@ P_MENTION='(^|[[:space:](\[{,;"'"'"'])@[A-Za-z0-9][A-Za-z0-9-]{0,38}([^A-Za-z0-9
 P_INTERNAL='\.local([^a-z]|$)|\.internal([^a-z]|$)|\.lan([^a-z]|$)'
 [ -n "${RAGFIT_LEAK_EXTRA:-}" ] && P_INTERNAL="${P_INTERNAL}|${RAGFIT_LEAK_EXTRA}"
 [ -z "${RAGFIT_LEAK_EXTRA:-}" ] && [ -f .ragfit-leak-extra ] && P_INTERNAL="${P_INTERNAL}|$(tr -d '\n' < .ragfit-leak-extra)"
+if [ "${RAGFIT_LEAK_REQUIRE_EXTRA:-}" = true ] && [ -z "${RAGFIT_LEAK_EXTRA:-}" ]; then
+  echo "leak-guard: RAGFIT_LEAK_EXTRA is empty (repository secret missing) – failing" >&2; exit 1
+fi
 PATTERN="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_MENTION})|(${P_INTERNAL})"
 # Code patches: Ruby instance variables (@provider) look like mentions → no mention check there
 PATTERN_CODE="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_INTERNAL})"
@@ -42,12 +45,12 @@ for p in "${OWN[@]}"; do
 done
 
 base="${1:-$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)}"
-if [ -n "$base" ] && git rev-parse -q --verify "${base}^{commit}" >/dev/null; then
+if [ -n "$base" ] && git rev-parse -q --verify "${base}^{commit}" >/dev/null && git merge-base "$base" HEAD >/dev/null 2>&1; then
   git diff "${base}"...HEAD -- . ':!ragfit/ci/leak-guard.sh' ':!ragfit/patches' | grep -E '^\+[^+]' | scan "diff ${base}...HEAD (added lines)"
   git diff "${base}"...HEAD -- ragfit/patches | grep -E '^\+[^+]' | scan "patches diff ${base}...HEAD" "$PATTERN_CODE"
   git log --format='%an <%ae>%n%B' "${base}"..HEAD | scan "commit messages ${base}..HEAD"
 else
-  echo "note: no upstream tag found locally, diff/commit-message scan skipped (fetch tags for full scan)"
+  echo "note: no upstream tag with merge base (shallow clone?), diff/commit-message scan skipped"
 fi
 
 [ "$fail" = 0 ] && echo "leak-guard: clean" || { echo "leak-guard: FAILED"; exit 1; }

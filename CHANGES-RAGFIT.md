@@ -25,7 +25,9 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 **What:** Images are built, signed and published only for release tags `vX.Y.Z-ragfit.N` or a manual run.
 - `.github/workflows/erynoa-build.yml`: build on push to `main` disabled (commented out, marker `#RAGFIT-OFF# `); triggers are tags `v*-ragfit.*` and `workflow_dispatch`; the tag must match `lib/open_project/version.rb`; new `guard` job (leak guard, patch check) runs before the build.
 - `.github/workflows/erynoa-upstream-sync.yml`: daily schedule unchanged, never builds; upstream tags `vX.Y.Z` do not match the release trigger.
-- Upstream build/publish workflows (`core-docker-release`, `hocuspocus-docker`, `packager`, `continuous-delivery`, `pullpreview`): automatic triggers disabled with the same marker, manual runs kept.
-- New: `justfile` (`just release`, `just ci`, `just ci-quick`, `just ci-triggers`), `ragfit/ci/leak-guard.sh`, `README-RAGFIT-CI.md` (how to re-enable triggers).
+- All other workflows (upstream build/publish, lint, test, scan, sync and bot workflows): automatic triggers disabled with the same marker; `workflow_dispatch` kept or added.
+- `test-core.yml`: third-party runner replaced by `ubuntu-latest` (original kept with marker `#RAGFIT-RUNNER# `).
+- New `ragfit/ci/trigger-check.sh` (guard job, `just ci-quick`): fails on active automatic triggers other than the release tag push and the upstream sync schedule, and on non-GitHub-hosted runner labels.
+- New: `justfile` (`just release`, `just ci`, `just ci-quick`, `just ci-triggers`, `just trigger-check`), `ragfit/ci/leak-guard.sh`, `README-RAGFIT-CI.md` (how to re-enable triggers).
 
 **Why:** Builds only for deliberate releases on GitHub-hosted runners; synced upstream tags never publish upstream code under this repository.

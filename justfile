@@ -30,7 +30,7 @@ release version:
     echo "pushed v$v → GitHub Actions erynoa-build.yml builds, signs and publishes"
 
 # Fast checks (seconds): leak guard, workflow lint, patch series consistency
-ci-quick: leak-guard lint-workflows patches
+ci-quick: leak-guard trigger-check lint-workflows patches
 
 # Full local CI (no push, no publish): quick checks + Ruby/JS lint on our changes + license scan + image build + SBOM check
 ci: ci-quick lint licenses build sbom
@@ -38,6 +38,10 @@ ci: ci-quick lint licenses build sbom
 # Public-repo leak guard (hosts, tailnet, IPs, internal names, @-mentions)
 leak-guard:
     ragfit/ci/leak-guard.sh
+
+# No active automatic triggers (except allowed ones), only free GitHub-hosted runners
+trigger-check:
+    ragfit/ci/trigger-check.sh
 
 # Workflow lint (actionlint, zizmor if installed)
 lint-workflows:
@@ -101,6 +105,8 @@ ci-triggers action="list" file="":
     case "{{action}}" in
       list) grep -n '^#RAGFIT-OFF# ' .github/workflows/*.y*ml || echo "no disabled triggers" ;;
       on)   f=".github/workflows/{{file}}"; [ -f "$f" ] || { echo "usage: just ci-triggers on <workflow.yml>" >&2; exit 1; }
-            sed -i 's/^#RAGFIT-OFF# //' "$f"; echo "re-enabled triggers in $f – review, run actionlint, commit"; actionlint "$f" || true ;;
+            sed -i 's/^#RAGFIT-OFF# //' "$f"; echo "re-enabled triggers in $f – review and commit"
+            actionlint "$f" || echo "WARNING: actionlint reports errors in $f – fix before committing" >&2
+            echo "NOTE: trigger-check (guard/ci-quick) will fail until $f is added to ALLOWED in ragfit/ci/trigger-check.sh" >&2 ;;
       *)    echo "usage: just ci-triggers [list|on <workflow.yml>]" >&2; exit 1 ;;
     esac

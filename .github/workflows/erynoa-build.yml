@@ -36,8 +36,11 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 1
           persist-credentials: false
-      - name: Leak guard (own files)
+      - name: Trigger and runner check (no automatic triggers, GitHub-hosted runners only)
+        run: ragfit/ci/trigger-check.sh
+      - name: Leak guard (own files only in CI; diff/commit scan needs upstream tags, run `just ci-quick` locally)
         env:
+          RAGFIT_LEAK_REQUIRE_EXTRA: "true"
           RAGFIT_LEAK_EXTRA: ${{ secrets.RAGFIT_LEAK_EXTRA }}   # internal names, never in the repo
         run: ragfit/ci/leak-guard.sh
       - name: Patch series applied and documented

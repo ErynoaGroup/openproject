@@ -1,13 +1,16 @@
 name: Yamllint
 
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  pull_request:
-    paths:
-      - '.yamllint.yml'
-      - 'config/locales/en.yml'
-      - 'config/locales/js-en.yml'
-      - 'modules/*/config/locales/en.yml'
-      - 'modules/*/config/locales/js-en.yml'
+  workflow_dispatch:
+#RAGFIT-OFF#   pull_request:
+#RAGFIT-OFF#     paths:
+#RAGFIT-OFF#       - '.yamllint.yml'
+#RAGFIT-OFF#       - 'config/locales/en.yml'
+#RAGFIT-OFF#       - 'config/locales/js-en.yml'
+#RAGFIT-OFF#       - 'modules/*/config/locales/en.yml'
+#RAGFIT-OFF#       - 'modules/*/config/locales/js-en.yml'
 
 jobs:
   yamllint:

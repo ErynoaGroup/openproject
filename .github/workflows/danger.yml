@@ -1,13 +1,16 @@
 name: Dangerfile
 
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
-    paths-ignore:
-      - "docs/**"
-      - "help/**"
-      - "packaging/**"
-      - ".pkgr.yml"
+  workflow_dispatch:
+#RAGFIT-OFF#   pull_request:
+#RAGFIT-OFF#     types: [opened, reopened, synchronize]
+#RAGFIT-OFF#     paths-ignore:
+#RAGFIT-OFF#       - "docs/**"
+#RAGFIT-OFF#       - "help/**"
+#RAGFIT-OFF#       - "packaging/**"
+#RAGFIT-OFF#       - ".pkgr.yml"
 
 jobs:
   danger:
