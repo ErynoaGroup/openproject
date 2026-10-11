@@ -1,4 +1,4 @@
-# RagFit changes to OpenProject (ErynoaGroup/openproject → RagFit | Plan)
+# RagFit | Plan – changes to OpenProject
 
 This repository is a modified version of OpenProject (GPL-3.0-only, © OpenProject GmbH).
 Per GPLv3 §5(a), all modifications are listed here with date. Upstream notices are kept unchanged.
@@ -32,3 +32,13 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 - New: `justfile` (`just release`, `just ci`, `just ci-quick`, `just ci-triggers`, `just trigger-check`), `ragfit/ci/leak-guard.sh`, `README-RAGFIT-CI.md` (how to re-enable triggers).
 
 **Why:** Builds only for deliberate releases on GitHub-hosted runners; synced upstream tags never publish upstream code under this repository.
+
+## 2026-10-11 — Rename to RagFit | Plan, new README
+
+**What:** Repository and image renamed from `openproject` to `ragfit-plan`.
+- `README.md`: replaced by the RagFit | Plan README (purpose, architecture, SSO patch, build, deployment, upstream sync, license, third-party credits). The upstream README is available in upstream releases.
+- `.github/workflows/erynoa-build.yml`: image `ghcr.io/erynoagroup/ragfit-plan`; SBOM artifact renamed; OCI title/description labels added; cosign identity check accepts the old and the new repository name. Build cache scopes unchanged.
+- `justfile`: local CI image name `ragfit-plan-ci`; `ci-quick` also runs `asset-guard` and `notice-guard`.
+- New: `ragfit/brand/` (unmodified RagFit logo files with `PROVENANCE.md`), `ragfit/ci/asset-guard.sh`, `ragfit/ci/notice-guard.sh`.
+
+**Why:** Product name RagFit | Plan; upstream name and logo are not used as product branding.

@@ -26,7 +26,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  IMAGE: ghcr.io/erynoagroup/openproject
+  IMAGE: ghcr.io/erynoagroup/ragfit-plan
 
 jobs:
   guard:
@@ -139,6 +139,8 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ needs.meta.outputs.version }}-slim
             org.opencontainers.image.licenses=GPL-3.0-only
+            org.opencontainers.image.title=RagFit | Plan
+            org.opencontainers.image.description=RagFit | Plan, based on OpenProject (GPLv3); modifications listed in CHANGES-RAGFIT.md
           provenance: false
           sbom: false
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true,rewrite-timestamp=true
@@ -193,7 +195,7 @@ jobs:
           image: ${{ env.IMAGE }}@${{ steps.manifest.outputs.digest }}
           format: spdx-json
           output-file: sbom.spdx.json
-          artifact-name: sbom-openproject.spdx.json
+          artifact-name: sbom-ragfit-plan.spdx.json
           upload-artifact: true
           upload-release-assets: false
       - name: Sign and attest (keyless, GitHub OIDC)
@@ -208,7 +210,8 @@ jobs:
           REF: ${{ env.IMAGE }}@${{ steps.manifest.outputs.digest }}
         run: |
           set -euo pipefail
-          id="^https://github.com/${{ github.repository }}/\.github/workflows/erynoa-build\.yml@"
+          # accept old and new repository name (rename openproject -> ragfit-plan)
+          id="^https://github.com/${{ github.repository_owner }}/(openproject|ragfit-plan)/\.github/workflows/erynoa-build\.yml@"
           cosign verify "$REF" --certificate-identity-regexp "$id" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
           cosign verify-attestation "$REF" --type spdxjson --certificate-identity-regexp "$id" \
