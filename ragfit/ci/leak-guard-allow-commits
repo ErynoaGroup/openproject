@@ -1,0 +1,3 @@
+# Commits whose MESSAGE is exempt from the leak-guard commit-message scan (files/diff/paths still scanned).
+# Format: <full 40-hex SHA> <reason>. Only for merged commits that cannot be rewritten (no force push).
+0967157a934fc177a8abbabd74fceb7fc61baea0 squash message of #10 quotes a bare digest marker in prose; reviewed, no private data
