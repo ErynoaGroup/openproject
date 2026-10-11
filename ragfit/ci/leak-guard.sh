@@ -22,7 +22,9 @@ P_INTERNAL='\.local([^a-z]|$)|\.internal([^a-z]|$)|\.lan([^a-z]|$)'
 if [ "${RAGFIT_LEAK_REQUIRE_EXTRA:-}" = true ] && [ -z "${RAGFIT_LEAK_EXTRA:-}" ]; then
   echo "leak-guard: RAGFIT_LEAK_EXTRA is empty (repository secret missing) – failing" >&2; exit 1
 fi
-PATTERN="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_MENTION})|(${P_INTERNAL})"
+# Any digest marker left after neutralize() (i.e. not followed by ':') is a hit, whatever follows it
+P_DIGEST='@sha256'
+PATTERN="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_MENTION})|(${P_DIGEST})|(${P_INTERNAL})"
 # Code patches: Ruby instance variables (@provider) look like mentions → no mention check there
 PATTERN_CODE="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_INTERNAL})"
 
@@ -76,18 +78,37 @@ if [ -n "$base" ] && git rev-parse -q --verify "${base}^{commit}" >/dev/null && 
   scan "patches diff ${base}...HEAD" "$PATTERN_CODE" <<<"$added"
   changed=$(git diff --name-only "${base}"...HEAD)
   scan "changed paths ${base}...HEAD" < <(printf '%s\n' "$changed" | paths)
-  # Commits listed in leak-guard-allow-commits (full SHA, one per line) skip ONLY the message scan;
-  # their files, diff and paths are still scanned above. History cannot be rewritten (no force push).
-  allow=()
-  if [ -f ragfit/ci/leak-guard-allow-commits ]; then
-    mapfile -t allow < <(grep -E '^[0-9a-f]{40}$' ragfit/ci/leak-guard-allow-commits || true)
+  # Commits listed in leak-guard-allow-commits skip ONLY the message scan; their files, diff and
+  # paths are still scanned above. History cannot be rewritten (no force push).
+  # Format: '#' comments, blank lines, or '<full 40-hex SHA> <reason>'. Anything else, an unknown
+  # commit or a commit outside ${base}..HEAD exits 2.
+  revs=$(git rev-list "${base}"..HEAD)
+  declare -A allow=()
+  allow_file=ragfit/ci/leak-guard-allow-commits
+  if [ -f "$allow_file" ]; then
+    n=0
+    while IFS= read -r line || [ -n "$line" ]; do
+      n=$((n+1))
+      case "$line" in ''|'#'*) continue ;; esac
+      if ! [[ "$line" =~ ^([0-9a-f]{40})\ +[^\ ].*$ ]]; then
+        echo "leak-guard: ERROR $allow_file:$n: expected '<40-hex SHA> <reason>'" >&2; exit 2
+      fi
+      sha="${BASH_REMATCH[1]}"
+      if ! git cat-file -e "${sha}^{commit}" 2>/dev/null; then
+        echo "leak-guard: ERROR $allow_file:$n: unknown commit $sha" >&2; exit 2
+      fi
+      if ! grep -qx "$sha" <<<"$revs"; then
+        echo "leak-guard: ERROR $allow_file:$n: $sha is not in ${base}..HEAD" >&2; exit 2
+      fi
+      allow[$sha]=1
+    done < "$allow_file"
   fi
   msgs=""
   while read -r c; do
-    skip=0; for a in "${allow[@]}"; do [ "$c" = "$a" ] && skip=1; done
-    [ "$skip" = 1 ] && continue
+    [ -n "$c" ] || continue
+    [ -n "${allow[$c]:-}" ] && continue
     msgs+=$(git log -1 --format='%an <%ae>%n%B' "$c")$'\n'
-  done < <(git rev-list "${base}"..HEAD)
+  done <<<"$revs"
   scan "commit messages ${base}..HEAD" <<<"$msgs"
 else
   echo "note: no upstream tag with merge base (shallow clone?), diff/commit-message scan skipped"
