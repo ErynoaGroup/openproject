@@ -1,7 +1,9 @@
 name: create-merge-from-previous-release-branch
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  push:
-    branches: ["release/*"]
+#RAGFIT-OFF#   push:
+#RAGFIT-OFF#     branches: ["release/*"]
   workflow_dispatch:
 
 permissions: {}

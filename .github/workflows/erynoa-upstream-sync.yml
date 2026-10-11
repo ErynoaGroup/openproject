@@ -14,6 +14,7 @@ concurrency:
 env:
   UPSTREAM: opf/openproject
   UPSTREAM_URL: https://github.com/opf/openproject.git
+  # Sync only: never builds. Upstream tags vX.Y.Z do not match the release trigger v*-ragfit.*.
   # paths whose change means a Rails DB schema migration (forward-only)
   SCHEMA_PATHS: "db/migrate modules/*/db/migrate*"
 
@@ -102,7 +103,7 @@ jobs:
 
           - Review release notes (https://www.openproject.org/docs/release-notes/) before merging.
           - Merge with a merge commit. Never auto-merge.
-          - The merge to main triggers erynoa-build.yml."
+          - Merging does NOT build. A release is cut separately with \`just release X.Y.Z-ragfit.N\` (tag → erynoa-build.yml)."
           labels=(--label upstream-sync)
           gh label create upstream-sync --color 0e8a16 --description "Upstream release sync" 2>/dev/null || true
           if [ "$SCHEMA" = "true" ]; then

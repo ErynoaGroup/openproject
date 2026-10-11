@@ -1,24 +1,26 @@
 name: "Frontend test suite"
 
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - dev
-      - release/*
-    paths:
-      - '**/frontend/**/*.ts'
-      - '**/frontend/**/*.js'
-      - '**/frontend/**/*.json'
-      - '.github/workflows/test-frontend-unit.yml'
+#RAGFIT-OFF#   push:
+#RAGFIT-OFF#     branches:
+#RAGFIT-OFF#       - dev
+#RAGFIT-OFF#       - release/*
+#RAGFIT-OFF#     paths:
+#RAGFIT-OFF#       - '**/frontend/**/*.ts'
+#RAGFIT-OFF#       - '**/frontend/**/*.js'
+#RAGFIT-OFF#       - '**/frontend/**/*.json'
+#RAGFIT-OFF#       - '.github/workflows/test-frontend-unit.yml'
 
-  pull_request:
-    types: [opened, reopened, synchronize]
-    paths:
-      - '**/frontend/**/*.ts'
-      - '**/frontend/**/*.js'
-      - '**/frontend/**/*.json'
-      - '.github/workflows/test-frontend-unit.yml'
+#RAGFIT-OFF#   pull_request:
+#RAGFIT-OFF#     types: [opened, reopened, synchronize]
+#RAGFIT-OFF#     paths:
+#RAGFIT-OFF#       - '**/frontend/**/*.ts'
+#RAGFIT-OFF#       - '**/frontend/**/*.js'
+#RAGFIT-OFF#       - '**/frontend/**/*.json'
+#RAGFIT-OFF#       - '.github/workflows/test-frontend-unit.yml'
 
 permissions:
   contents: read

@@ -1,22 +1,24 @@
 name: "Test suite"
 # https://securitylab.github.com/research/github-actions-preventing-pwn-requests
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - dev
-      - release/*
-    paths-ignore:
-      - 'docs/**'
-      - 'help/**'
-  pull_request:
-    types: [opened, reopened, synchronize]
-    paths-ignore:
-      - 'docs/**'
-      - 'help/**'
-      - 'packaging/**'
-      - '.pkgr.yml'
-      - '.github/workflows/packager.yml'
+#RAGFIT-OFF#   push:
+#RAGFIT-OFF#     branches:
+#RAGFIT-OFF#       - dev
+#RAGFIT-OFF#       - release/*
+#RAGFIT-OFF#     paths-ignore:
+#RAGFIT-OFF#       - 'docs/**'
+#RAGFIT-OFF#       - 'help/**'
+#RAGFIT-OFF#   pull_request:
+#RAGFIT-OFF#     types: [opened, reopened, synchronize]
+#RAGFIT-OFF#     paths-ignore:
+#RAGFIT-OFF#       - 'docs/**'
+#RAGFIT-OFF#       - 'help/**'
+#RAGFIT-OFF#       - 'packaging/**'
+#RAGFIT-OFF#       - '.pkgr.yml'
+#RAGFIT-OFF#       - '.github/workflows/packager.yml'
 
 permissions:
   contents: read
@@ -26,8 +28,11 @@ jobs:
   all:
     name: Units + Features
     if: github.repository_owner == 'opf'
-    runs-on:
-      labels: "runs-on=${{ github.run_id }}/image=ubuntu24-full-x64/family=m8azn+m8+m7+i7+r8/ram=128+256/cpu=24+32/volume=50gb"
+    # RagFit fork: free GitHub-hosted runners only. Original third-party runner kept below (marker #RAGFIT-RUNNER#).
+    # The suite is sized for 24+ CPUs; on ubuntu-latest it is slow and manual-only (triggers disabled).
+    runs-on: ubuntu-latest
+#RAGFIT-RUNNER#     runs-on:
+#RAGFIT-RUNNER#       labels: "runs-on=${{ github.run_id }}/image=ubuntu24-full-x64/family=m8azn+m8+m7+i7+r8/ram=128+256/cpu=24+32/volume=50gb"
     timeout-minutes: 40
     env:
       DOCKER_BUILDKIT: 1

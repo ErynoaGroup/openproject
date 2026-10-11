@@ -1,9 +1,11 @@
 name: npm audit fix
 
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "23 4 * * 1"
+#RAGFIT-OFF#   schedule:
+#RAGFIT-OFF#     - cron: "23 4 * * 1"
 
 env:
   BASE_BRANCH: dev

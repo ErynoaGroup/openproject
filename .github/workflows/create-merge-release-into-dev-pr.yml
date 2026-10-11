@@ -1,8 +1,10 @@
 name: create-merge-release-into-dev-pr
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "30 3 * * *" # Daily at 03:30
+#RAGFIT-OFF#   schedule:
+#RAGFIT-OFF#     - cron: "30 3 * * *" # Daily at 03:30
 
 env:
   BASE_BRANCH: dev

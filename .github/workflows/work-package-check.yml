@@ -1,12 +1,15 @@
 name: Check work package version and Enterprise plan
 
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  pull_request:
-    types:
-      - opened
-      - labeled
-      - synchronize
-      - ready_for_review
+  workflow_dispatch:
+#RAGFIT-OFF#   pull_request:
+#RAGFIT-OFF#     types:
+#RAGFIT-OFF#       - opened
+#RAGFIT-OFF#       - labeled
+#RAGFIT-OFF#       - synchronize
+#RAGFIT-OFF#       - ready_for_review
 
 permissions:
   contents: read # to fetch code (actions/checkout)

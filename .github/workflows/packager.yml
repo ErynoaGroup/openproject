@@ -1,14 +1,16 @@
 name: Package
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  push:
-    tags:
-      - v*
-    branches:
-      - packaging/*
-      - release/*
+#RAGFIT-OFF#   push:
+#RAGFIT-OFF#     tags:
+#RAGFIT-OFF#       - v*
+#RAGFIT-OFF#     branches:
+#RAGFIT-OFF#       - packaging/*
+#RAGFIT-OFF#       - release/*
   workflow_dispatch:
-  schedule:
-    - cron: '0 3 * * *' # Daily at 03:00
+#RAGFIT-OFF#   schedule:
+#RAGFIT-OFF#     - cron: '0 3 * * *' # Daily at 03:00
 
 jobs:
   build:

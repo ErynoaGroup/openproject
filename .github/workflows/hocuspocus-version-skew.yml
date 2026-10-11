@@ -1,11 +1,14 @@
 name: "Hocuspocus / Version skew"
 
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
-    paths:
-      - 'frontend/package.json'
-      - 'extensions/op-blocknote-hocuspocus/package.json'
+  workflow_dispatch:
+#RAGFIT-OFF#   pull_request:
+#RAGFIT-OFF#     types: [opened, reopened, synchronize]
+#RAGFIT-OFF#     paths:
+#RAGFIT-OFF#       - 'frontend/package.json'
+#RAGFIT-OFF#       - 'extensions/op-blocknote-hocuspocus/package.json'
 
 permissions:
   contents: read # to fetch code (actions/checkout)

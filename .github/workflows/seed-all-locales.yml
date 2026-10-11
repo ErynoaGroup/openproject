@@ -1,8 +1,10 @@
 name: Test seeding in all locales
 
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  schedule:
-    - cron: "0 2 * * 0" # Weekly on Sunday at 2 AM UTC
+#RAGFIT-OFF#   schedule:
+#RAGFIT-OFF#     - cron: "0 2 * * 0" # Weekly on Sunday at 2 AM UTC
   workflow_dispatch:
     inputs:
       ref:

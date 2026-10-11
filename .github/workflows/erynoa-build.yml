@@ -1,9 +1,23 @@
 name: erynoa-build
 
+# Build/sign/publish ONLY for releases (no push/pull_request triggers).
+# Release tags have the form vX.Y.Z-ragfit.N (set by `just release`). Plain upstream tags vX.Y.Z,
+# which the upstream sync pushes into this repo, deliberately do NOT match.
+# GitHub-hosted runners only.
+# Disabled (not deleted): build on every push to main. Re-enable: `just ci-triggers on erynoa-build.yml`.
 on:
   push:
-    branches: [main]
+    tags: ["v*-ragfit.*"]
+#RAGFIT-OFF#     branches: [main]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Release tag to build (vX.Y.Z-ragfit.N), or a branch for guard_only"
+        required: true
+      guard_only:
+        description: "Run only the guard job (no build, no push). Set false to build and publish the tag."
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -15,7 +29,36 @@ env:
   IMAGE: ghcr.io/erynoagroup/openproject
 
 jobs:
+  guard:
+    # Same checks as `just ci-quick` (without the just dependency): public-repo leak guard + patch series.
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Trigger and runner check (no automatic triggers, GitHub-hosted runners only)
+        run: ragfit/ci/trigger-check.sh
+      - name: Leak guard (own files only in CI; diff/commit scan needs upstream tags, run `just ci-quick` locally)
+        env:
+          RAGFIT_LEAK_REQUIRE_EXTRA: "true"
+          RAGFIT_LEAK_EXTRA: ${{ secrets.RAGFIT_LEAK_EXTRA }}   # internal names, never in the repo
+        run: ragfit/ci/leak-guard.sh
+      - name: Patch series applied and documented
+        run: |
+          set -euo pipefail
+          for p in ragfit/patches/*.patch; do
+            git apply -R --check --exclude=CHANGES-RAGFIT.md "$p"  # CHANGES is a living log, later entries break exact reverse-apply
+            grep -q "$(basename "$p")" CHANGES-RAGFIT.md
+          done
+
   meta:
+    needs: guard
+    # guard_only (default for manual runs) stops here: meta, build and publish are skipped.
+    if: github.event_name == 'push' || inputs.guard_only == false
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -26,20 +69,26 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 1
           persist-credentials: false
       - id: v
+        env:
+          REF_NAME: ${{ inputs.ref || github.ref_name }}
         run: |
           set -euo pipefail
-          # repo is ~3 GB: no full history. Version comes from upstream lib/open_project/version.rb.
+          # Release version = tag (vX.Y.Z-ragfit.N); X.Y.Z must match upstream lib/open_project/version.rb.
+          [[ "$REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-ragfit\.([0-9]+)$ ]] || { echo "not a release tag: $REF_NAME" >&2; exit 1; }
+          base="${BASH_REMATCH[1]}"
           f=lib/open_project/version.rb
           major=$(sed -nE 's/^ *MAJOR = ([0-9]+).*/\1/p' $f)
           minor=$(sed -nE 's/^ *MINOR = ([0-9]+).*/\1/p' $f)
           patch=$(sed -nE 's/^ *PATCH = ([0-9]+).*/\1/p' $f)
-          echo "version=${major}.${minor}.${patch}" >> "$GITHUB_OUTPUT"
+          [ "$base" = "${major}.${minor}.${patch}" ] || { echo "tag $REF_NAME != version.rb ${major}.${minor}.${patch}" >&2; exit 1; }
+          echo "version=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
           echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
           echo "epoch=$(git log -1 --format=%ct HEAD)" >> "$GITHUB_OUTPUT"
-          echo "version ${major}.${minor}.${patch}"
+          echo "version ${REF_NAME#v}"
 
   build:
     needs: meta
@@ -64,6 +113,7 @@ jobs:
           df -h /
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 1
           persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1

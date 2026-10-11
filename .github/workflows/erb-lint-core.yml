@@ -1,11 +1,14 @@
 name: ERB lint
 
+# RagFit fork: automatic triggers are DISABLED, not deleted. Lines prefixed "#RAGFIT-OFF# " are the
+# original upstream triggers. Re-enable: `just ci-triggers on <file>` (removes the prefix). See README-RAGFIT-CI.md.
 on:
-  pull_request:
-    paths:
-      - "**/*.erb"
-      - ".erb_lint.yml"
-      - ".erb_linters/**"
+  workflow_dispatch:
+#RAGFIT-OFF#   pull_request:
+#RAGFIT-OFF#     paths:
+#RAGFIT-OFF#       - "**/*.erb"
+#RAGFIT-OFF#       - ".erb_lint.yml"
+#RAGFIT-OFF#       - ".erb_linters/**"
 
 jobs:
   erb-lint:
