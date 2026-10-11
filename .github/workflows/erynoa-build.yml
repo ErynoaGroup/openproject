@@ -94,7 +94,10 @@ jobs:
           # Upstream base (labels and release notes only): lib/open_project/version.rb + upstream tag commit.
           f=lib/open_project/version.rb
           up="$(sed -nE 's/^ *MAJOR = ([0-9]+).*/\1/p' $f).$(sed -nE 's/^ *MINOR = ([0-9]+).*/\1/p' $f).$(sed -nE 's/^ *PATCH = ([0-9]+).*/\1/p' $f)"
-          upsha=$(git ls-remote origin "refs/tags/v${up}^{}" "refs/tags/v${up}" | awk 'NR==1{print substr($1,1,7)}')
+          # Prefer the peeled commit (^{}) of an annotated tag; fall back to the lightweight tag.
+          refs=$(git ls-remote origin "refs/tags/v${up}" "refs/tags/v${up}^{}")
+          upsha=$(printf '%s\n' "$refs" | awk '$2 ~ /\^\{\}$/ {print substr($1,1,7); f=1} END {}' | head -n1)
+          [ -n "$upsha" ] || upsha=$(printf '%s\n' "$refs" | awk 'NR==1{print substr($1,1,7)}')
           [ -n "$upsha" ] || { echo "upstream tag v${up} not found" >&2; exit 1; }
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "upstream_version=v${up}" >> "$GITHUB_OUTPUT"
@@ -257,5 +260,7 @@ jobs:
             "" \
             "Upstream base: ${UPSTREAM}" \
             "" \
-            "Signed with cosign (keyless); SPDX SBOM attached as signed attestation. Changes: CHANGES-RAGFIT.md." > notes.md
+            "Signed with cosign (keyless); SPDX SBOM attached as signed attestation. Changes: CHANGES-RAGFIT.md." \
+            "" \
+            "Licensed under GPLv3. Corresponding source: this repository at tag ${TAG} (source archives attached to this release)." > notes.md
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "RagFit | Plan v${VERSION}" --notes-file notes.md
