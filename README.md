@@ -27,7 +27,7 @@ RagFit consists of separate services that communicate only over network APIs:
 
 | Component | Role |
 |-----------|------|
-| RagFit \| Source | Code hosting, identity and single sign-on (OpenID Connect provider), based on Forgejo |
+| RagFit \| Source | Code hosting, identity and single sign-on (OpenID Connect provider), based on Gitea |
 | RagFit \| Plan | Project management (this repository) |
 | RagFit \| Memory | Knowledge and retrieval service, based on Cognee |
 | RagFit \| Docs | Documentation |

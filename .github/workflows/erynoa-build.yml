@@ -30,7 +30,7 @@ env:
 
 jobs:
   guard:
-    # Same checks as `just ci-quick` (without the just dependency): public-repo leak guard + patch series.
+    # Same checks as `just ci-quick` (without the just dependency): leak guard, asset and notice guards, patch series.
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -47,6 +47,15 @@ jobs:
           RAGFIT_LEAK_REQUIRE_EXTRA: "true"
           RAGFIT_LEAK_EXTRA: ${{ secrets.RAGFIT_LEAK_EXTRA }}   # internal names, never in the repo
         run: ragfit/ci/leak-guard.sh
+      - name: Brand assets unchanged (ragfit/brand/PROVENANCE.md)
+        run: ragfit/ci/asset-guard.sh
+      - name: Upstream license notices unchanged (vs. upstream tag of lib/open_project/version.rb)
+        run: |
+          set -euo pipefail
+          f=lib/open_project/version.rb
+          v="$(sed -nE 's/^ *MAJOR = ([0-9]+).*/\1/p' $f).$(sed -nE 's/^ *MINOR = ([0-9]+).*/\1/p' $f).$(sed -nE 's/^ *PATCH = ([0-9]+).*/\1/p' $f)"
+          git fetch --no-tags --depth=1 origin "refs/tags/v${v}:refs/tags/v${v}"
+          UPSTREAM_REF="v${v}" ragfit/ci/notice-guard.sh
       - name: Patch series applied and documented
         run: |
           set -euo pipefail

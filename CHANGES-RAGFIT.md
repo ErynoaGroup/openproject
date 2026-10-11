@@ -48,3 +48,9 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 **What:** Third-party credits moved to `ATTRIBUTION.md`; `SECURITY.md` replaced by a policy using GitHub private vulnerability reporting; README brand note on the RagFit name and logo; `ragfit/ci/notice-guard.sh` fails in CI when no upstream tag is available.
 
 **Why:** Keep required attributions in one place and give a reporting path for this repository.
+
+## 2026-10-11 — Guard job: asset and notice guards
+
+**What:** `erynoa-build.yml` guard job runs `ragfit/ci/asset-guard.sh` and `ragfit/ci/notice-guard.sh` (upstream tag from `lib/open_project/version.rb`, fetched shallow); `notice-guard.sh` ignores `-ragfit` release tags when looking up the upstream tag; README: RagFit | Source is based on Gitea.
+
+**Why:** License notices and brand assets are checked on every guarded run.
