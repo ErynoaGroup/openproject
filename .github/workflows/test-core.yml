@@ -38,13 +38,15 @@ jobs:
       DOCKER_BUILDKIT: 1
       CI_RETRY_COUNT: 3
     steps:
-    - uses: runs-on/action@46910bf61b41721b0579f237e186afb35477007a # v2.3.0
+    # RagFit fork: third-party runner action disabled (re-enable: drop the #RAGFIT-RUNNER# prefix).
+#RAGFIT-RUNNER#     - uses: runs-on/action@46910bf61b41721b0579f237e186afb35477007a # v2.3.0
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
     - name: Cache DOCKER
       id: cache_docker
-      uses: runs-on/cache@88d90644011a3a9957fd141a106f5a94f9794203 # v5
+#RAGFIT-RUNNER#       uses: runs-on/cache@88d90644011a3a9957fd141a106f5a94f9794203 # v5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: cache/docker
         # Note: no restore keys since whenever the files below change, we want to rebuild the full image from scratch
@@ -53,28 +55,32 @@ jobs:
       if: steps.cache_docker.outputs.cache-hit == 'true'
       run: docker load -i cache/docker/image.tar
     - name: Cache GEM
-      uses: runs-on/cache@88d90644011a3a9957fd141a106f5a94f9794203 # v5
+#RAGFIT-RUNNER#       uses: runs-on/cache@88d90644011a3a9957fd141a106f5a94f9794203 # v5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: cache/bundle
         key: gem-trixie-${{ hashFiles('.ruby-version') }}-${{ hashFiles('Gemfile.lock') }}
         restore-keys: |
           gem-trixie-${{ hashFiles('.ruby-version') }}-
     - name: Cache NPM
-      uses: runs-on/cache@88d90644011a3a9957fd141a106f5a94f9794203 # v5
+#RAGFIT-RUNNER#       uses: runs-on/cache@88d90644011a3a9957fd141a106f5a94f9794203 # v5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: cache/node
         key: node-${{ hashFiles('package.json', 'frontend/package-lock.json') }}
         restore-keys: |
           node-
     - name: Cache ANGULAR
-      uses: runs-on/cache@88d90644011a3a9957fd141a106f5a94f9794203 # v5
+#RAGFIT-RUNNER#       uses: runs-on/cache@88d90644011a3a9957fd141a106f5a94f9794203 # v5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: cache/angular
         key: angular-${{ hashFiles('package.json', 'frontend/package-lock.json') }}
         restore-keys: |
           angular-
     - name: Cache TEST RUNTIME
-      uses: runs-on/cache@88d90644011a3a9957fd141a106f5a94f9794203 # v5
+#RAGFIT-RUNNER#       uses: runs-on/cache@88d90644011a3a9957fd141a106f5a94f9794203 # v5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: cache/runtime-logs
         key: runtime-logs-${{ github.head_ref || github.ref }}-${{ github.sha }}
