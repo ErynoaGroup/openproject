@@ -28,10 +28,10 @@ PATTERN_CODE="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_INTERNAL})"
 
 # Allowed constructs are NEUTRALIZED by replacement on the raw text, never used to skip whole
 # lines, so a digest/action pin/noreply address cannot hide a real hit on the same line:
-#   @sha256 followed by a non-alphanumeric char or end of line (img@sha256:<hex>), action pins
+#   @sha256 followed by ':' (img@sha256:<hex>), case-insensitive; in prose it counts as a mention, action pins
 #   (uses: owner/repo@ref) and GitHub noreply addresses. Runs BEFORE grep -n adds its N: prefix.
 neutralize() {
-  sed -E -e 's/@sha256([^A-Za-z0-9]|$)/_sha256_\1/gI' \
+  sed -E -e 's/@sha256:/_sha256_:/gI' \
          -e 's/(uses:[[:space:]]+[^[:space:]@]+)@([^[:space:]]+)/\1_at_\2/g' \
          -e 's/[A-Za-z0-9._+-]*@users\.noreply\.github\.com/noreply-address/gI'
 }
@@ -76,7 +76,18 @@ if [ -n "$base" ] && git rev-parse -q --verify "${base}^{commit}" >/dev/null && 
   scan "patches diff ${base}...HEAD" "$PATTERN_CODE" <<<"$added"
   changed=$(git diff --name-only "${base}"...HEAD)
   scan "changed paths ${base}...HEAD" < <(printf '%s\n' "$changed" | paths)
-  msgs=$(git log --format='%an <%ae>%n%B' "${base}"..HEAD)
+  # Commits listed in leak-guard-allow-commits (full SHA, one per line) skip ONLY the message scan;
+  # their files, diff and paths are still scanned above. History cannot be rewritten (no force push).
+  allow=()
+  if [ -f ragfit/ci/leak-guard-allow-commits ]; then
+    mapfile -t allow < <(grep -E '^[0-9a-f]{40}$' ragfit/ci/leak-guard-allow-commits || true)
+  fi
+  msgs=""
+  while read -r c; do
+    skip=0; for a in "${allow[@]}"; do [ "$c" = "$a" ] && skip=1; done
+    [ "$skip" = 1 ] && continue
+    msgs+=$(git log -1 --format='%an <%ae>%n%B' "$c")$'\n'
+  done < <(git rev-list "${base}"..HEAD)
   scan "commit messages ${base}..HEAD" <<<"$msgs"
 else
   echo "note: no upstream tag with merge base (shallow clone?), diff/commit-message scan skipped"

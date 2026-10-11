@@ -12,8 +12,11 @@ flag 'see @sha256evil'
 flag 'uses: a/b@v1 # @alice'
 flag 'Jane <1+jane@users.noreply.github.com> cc @alice'
 pass 'image: ghcr.io/erynoagroup/ragfit-plan@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
-pass 'pinned by digest (@sha256) only'
-pass 'ends with @sha256'
+flag 'pinned by digest (@sha256) only'
+flag 'ends with @sha256'
+flag '- @sha256 / x'
+pass 'img@sha256:abc'
+pass 'img@SHA256:abc'
 pass '      - uses: actions/checkout@v4'
 pass 'Jane <1+jane@users.noreply.github.com>'
 flag 'see @SHA256evil'
@@ -49,6 +52,11 @@ fresh; mkdir -p "$tmp/r/docs/@alice"; echo ok > "$tmp/r/docs/@alice/a.md"; commi
 run 1 'leak in path'
 fresh; mkdir -p "$tmp/r/src"; printf 'x\n+ cc @alice\n' > "$tmp/r/src/a.rb"; commit 'src: plus line'
 run 1 'leak in added line starting with +'
+allow_head() { ( cd "$tmp/r" && git rev-parse HEAD > "$tmp/sha" ); cp "$tmp/sha" "$tmp/r/ragfit/ci/leak-guard-allow-commits"; commit 'ci: allowlist'; }
+fresh; mkdir -p "$tmp/r/docs"; echo ok > "$tmp/r/docs/a.md"; commit 'docs: thanks @alice'; allow_head
+run 0 'allowlisted commit: message scan skipped'
+fresh; mkdir -p "$tmp/r/docs"; echo 'cc @alice' > "$tmp/r/docs/a.md"; commit 'docs: thanks @alice'; allow_head
+run 1 'allowlisted commit: file/diff still scanned'
 [ "$rc_all" -eq 0 ] || rc=1
 [ $rc -eq 0 ] && echo "leak-guard tests: OK"
 exit $rc

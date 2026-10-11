@@ -1,0 +1,4 @@
+# Commits whose MESSAGE is exempt from the leak-guard commit-message scan (files/diff/paths still scanned).
+# One full 40-char SHA per line. Only for already-merged commits that cannot be rewritten.
+# 0967157a: squash message of #10 quotes a digest marker in prose; reviewed, no private data.
+0967157a934fc177a8abbabd74fceb7fc61baea0
