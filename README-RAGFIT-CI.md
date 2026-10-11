@@ -37,3 +37,12 @@ scans run with `just ci-quick` in a clone with tags. CI fails if the repository 
 Notes:
 - Re-enabling push-to-`main` in `erynoa-build.yml` also needs the `meta` job to accept non-tag refs (it currently rejects anything that is not `vX.Y.Z-ragfit.N`).
 - Upstream publish workflows target upstream registries/infrastructure and need upstream secrets; re-enable only with a clear reason.
+
+## Guard-only run
+
+`erynoa-build` has a `workflow_dispatch` input `guard_only` (default `true`). A manual run with the default only runs
+the guard job (leak guard, trigger check, patch check) on the given ref; nothing is built or pushed:
+
+    gh workflow run erynoa-build.yml --ref <branch> -f ref=<branch>
+
+A manual release build needs `-f ref=vX.Y.Z-ragfit.N -f guard_only=false`. Tag pushes always build.

@@ -27,6 +27,7 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 - `.github/workflows/erynoa-upstream-sync.yml`: daily schedule unchanged, never builds; upstream tags `vX.Y.Z` do not match the release trigger.
 - All other workflows (upstream build/publish, lint, test, scan, sync and bot workflows): automatic triggers disabled with the same marker; `workflow_dispatch` kept or added.
 - `test-core.yml`: third-party runner replaced by `ubuntu-latest` (original kept with marker `#RAGFIT-RUNNER# `).
+- `erynoa-build`: `workflow_dispatch` input `guard_only` (default true) runs only the guard job, no build or push.
 - New `ragfit/ci/trigger-check.sh` (guard job, `just ci-quick`): fails on active automatic triggers other than the release tag push and the upstream sync schedule, and on non-GitHub-hosted runner labels.
 - New: `justfile` (`just release`, `just ci`, `just ci-quick`, `just ci-triggers`, `just trigger-check`), `ragfit/ci/leak-guard.sh`, `README-RAGFIT-CI.md` (how to re-enable triggers).
 

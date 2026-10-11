@@ -12,8 +12,12 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Release tag to build (vX.Y.Z-ragfit.N)"
+        description: "Release tag to build (vX.Y.Z-ragfit.N), or a branch for guard_only"
         required: true
+      guard_only:
+        description: "Run only the guard job (no build, no push). Set false to build and publish the tag."
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -53,6 +57,8 @@ jobs:
 
   meta:
     needs: guard
+    # guard_only (default for manual runs) stops here: meta, build and publish are skipped.
+    if: github.event_name == 'push' || inputs.guard_only == false
     runs-on: ubuntu-24.04
     permissions:
       contents: read
