@@ -70,6 +70,23 @@ RSpec.describe OpenProject::OpenIDConnect::RagfitLoginGate do
     expect(Rails.logger).to have_received(:warn).with(/LOGIN_GROUPS entry ignored/).at_least(4).times
   end
 
+  it "authorizes only the full team claim, never a bare org or team name" do
+    gate = { "RAGFIT_OIDC_SOURCE_LOGIN_GROUPS" => "ErynoaGroup:plan-user" }
+    [
+      %w[ErynoaGroup], %w[plan-user], %w[ErynoaGroup plan-user], %w[:plan-user], %w[ErynoaGroup:],
+      %w[OtherOrg:plan-user], %w[ErynoaGroup:plan-user:x], ["ErynoaGroup:plan-user "], %w[ErynoaGroup:plan]
+    ].each do |groups|
+      expect(decide(gate_hash("groups" => groups), env: gate)).to be_reject, "groups #{groups.inspect} must be refused"
+    end
+    expect(decide(gate_hash("groups" => %w[ErynoaGroup ErynoaGroup:plan-user]), env: gate)).to be_approve
+    expect(decide(gate_hash("groups" => %w[erynoagroup:PLAN-USER]), env: gate)).to be_approve
+  end
+
+  it "never accepts a bare team name as LOGIN_GROUPS value" do
+    expect(decide(gate_hash("groups" => %w[plan-user]), env: { "RAGFIT_OIDC_SOURCE_LOGIN_GROUPS" => "plan-user" }))
+      .to be_reject
+  end
+
   it "rejects every login when only invalid entries are set" do
     expect(decide(gate_hash("groups" => %w[ErynoaGroup]), env: { "RAGFIT_OIDC_SOURCE_LOGIN_GROUPS" => "ErynoaGroup" }))
       .to be_reject
