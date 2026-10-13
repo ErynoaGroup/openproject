@@ -48,6 +48,13 @@ for path in sorted(glob.glob(".github/workflows/*.y*ml")):
                 errors.append(f"{name}: pull_request trigger must have paths only, got {cfg}")
             if (doc.get("permissions") or {}) != {"contents": "read"}:
                 errors.append(f"{name}: permissions must be exactly contents: read")
+            for jid, job in (doc.get("jobs") or {}).items():
+                if isinstance(job, dict) and "permissions" in job:
+                    jp = job["permissions"]
+                    if jp not in ({}, {"contents": "read"}, "none") and jp is not None:
+                        errors.append(f"{name}: job '{jid}' permissions must be contents: read or none, got {jp}")
+            if re.search(r"\bsecrets\.", open(path).read()):
+                errors.append(f"{name}: must not use secrets.*")
     for job_id, job in (doc.get("jobs") or {}).items():
         ro = job.get("runs-on") if isinstance(job, dict) else None
         if ro is None:

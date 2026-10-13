@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 45
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d # 16 (index digest, 2026-10-13)
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
