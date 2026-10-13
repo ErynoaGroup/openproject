@@ -20,7 +20,7 @@ concurrency:
 jobs:
   spec:
     name: rspec ragfit_admin_group_spec
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned; ubuntu-latest moves to 26.04
     timeout-minutes: 45
     services:
       postgres:

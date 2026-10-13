@@ -53,8 +53,8 @@ for path in sorted(glob.glob(".github/workflows/*.y*ml")):
                     jp = job["permissions"]
                     if jp not in ({}, {"contents": "read"}, "none") and jp is not None:
                         errors.append(f"{name}: job '{jid}' permissions must be contents: read or none, got {jp}")
-            if re.search(r"\bsecrets\.", open(path).read()):
-                errors.append(f"{name}: must not use secrets.*")
+            if re.search(r"\bsecrets\s*[.\[]", open(path).read()):
+                errors.append(f"{name}: must not use secrets.* or secrets[...]")
     for job_id, job in (doc.get("jobs") or {}).items():
         ro = job.get("runs-on") if isinstance(job, dict) else None
         if ro is None:

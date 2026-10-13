@@ -90,7 +90,7 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 
 ## 2026-10-13 — CI: RagFit spec workflow
 
-**What:** New `.github/workflows/erynoa-spec.yml` runs `modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb` on `ubuntu-latest` (Postgres service, Ruby from `.ruby-version`, cached bundle, `db:create db:migrate`, no frontend build). Triggers: `pull_request` limited to `modules/openid_connect/**`, `ragfit/**` and the workflow itself, plus `workflow_dispatch`; `permissions: contents: read`; concurrency per ref. `ragfit/ci/trigger-check.sh` allows exactly this trigger (paths only, read-only permissions) and fails on job-level permissions other than `contents: read`/none and on any `secrets.*` use in this workflow. The Postgres service image is pinned by digest.
+**What:** New `.github/workflows/erynoa-spec.yml` runs `modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb` on `ubuntu-24.04` (Postgres service, Ruby from `.ruby-version`, cached bundle, `db:create db:migrate`, no frontend build). Triggers: `pull_request` limited to `modules/openid_connect/**`, `ragfit/**` and the workflow itself, plus `workflow_dispatch`; `permissions: contents: read`; concurrency per ref. `ragfit/ci/trigger-check.sh` allows exactly this trigger (paths only, read-only permissions) and fails on job-level permissions other than `contents: read`/none and on any `secrets.*` or `secrets[...]` use in this workflow. The Postgres service image is pinned by digest.
 
 **Why:** The RagFit patches get a real spec run before merge; free GitHub-hosted runner, no publish rights.
 
