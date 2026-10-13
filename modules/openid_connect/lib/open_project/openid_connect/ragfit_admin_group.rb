@@ -1,0 +1,63 @@
+# frozen_string_literal: true
+
+# RagFit patch 0002 (oidc-admin-group, 2026-10-13): set the admin flag from a group claim on every OIDC login.
+# GPLv3 §10 modification, see CHANGES-RAGFIT.md.
+#
+# Upstream maps "admin" only from a boolean claim (attribute_map admin). Some providers only send a
+# "groups" array (e.g. "org" and "org:team" entries). With RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP set, the
+# strategy returns admin: true when that group is in the userinfo "groups" claim and admin: false when the
+# claim is present but does not contain it. Authentication::OmniauthService#update_admin_flag then grants
+# or revokes admin on every login. Without the variable (or a blank one), or without a "groups" claim,
+# nothing changes.
+#
+# Exactly one group per provider: the variable holds a single group name, not a list. It must be a full
+# team claim "<org>:<team>"; a bare org name (no ":" or an empty part) is ignored with a warning. Entries in the claim
+# that are not strings are ignored. The comparison is case-insensitive and exact (no prefix match).
+# RagFit | Source (Gitea) builds team entries as org.Name + ":" + lower-case team name, e.g.
+# "ErynoaGroup:platform-admin"; set the variable to exactly that string.
+module OpenProject::OpenIDConnect::RagfitAdminGroup
+  module_function
+
+  def env_name(provider_name)
+    "RAGFIT_OIDC_#{provider_name.to_s.upcase.gsub(/[^A-Z0-9]/, '_')}_ADMIN_GROUP"
+  end
+
+  # Binding rule (2026-10-13): Source OIDC consumers authorize only on a full team claim "<org>:<team>",
+  # never on a bare org name. A value without ":" or with an empty part is ignored (admin unchanged)
+  # and logged as a warning.
+  def team_claim?(group, provider_name)
+    org, team = group.split(":", 2)
+    return true if !org.to_s.strip.empty? && !team.to_s.strip.empty?
+
+    message = "RagFit: #{env_name(provider_name)} ignored, expected a team claim '<org>:<team>', " \
+              "not a bare org name; admin flag unchanged"
+    defined?(Rails) && Rails.logger ? Rails.logger.warn(message) : warn(message)
+    false
+  end
+
+  # Returns true, false or nil (nil: do not touch the admin flag).
+  def admin_for(provider_name, raw_info, env: ENV)
+    group = env[env_name(provider_name)].to_s.strip
+    return nil if group.empty?
+    return nil unless team_claim?(group, provider_name)
+
+    groups = raw_info.respond_to?(:[]) ? (raw_info["groups"] || raw_info[:groups]) : nil
+    return nil unless groups.is_a?(Array)
+
+    groups.any? { |g| g.is_a?(String) && g.strip.casecmp?(group) }
+  end
+
+  # Prepended to OmniAuth::FlexibleStrategy (engine.rb). OpenProject extends every strategy instance with
+  # FlexibleStrategy at runtime, and its omniauth_hash_to_user_attributes would shadow a patch on the
+  # strategy class. Only OpenID Connect strategies are touched; all others get the upstream result.
+  module StrategyPatch
+    def omniauth_hash_to_user_attributes(auth_hash)
+      attributes = defined?(super) ? super : {}
+      return attributes unless is_a?(::OmniAuth::Strategies::OpenIDConnect)
+
+      raw_info = auth_hash.dig("extra", "raw_info") || {}
+      admin = OpenProject::OpenIDConnect::RagfitAdminGroup.admin_for(name, raw_info)
+      admin.nil? ? attributes : attributes.merge(admin:)
+    end
+  end
+end

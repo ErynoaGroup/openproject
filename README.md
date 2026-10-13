@@ -51,7 +51,20 @@ RagFit | Plan removes that restriction for OpenID Connect only, as permitted by 
 - RagFit | Plan does not offer, claim or contain any other features of the commercial edition, and no
   support from the upstream vendor.
 
-The patch is re-checked against every upstream release before it is merged.
+### Admin flag from a group (patch 0002)
+
+With `RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP` set (e.g. `RAGFIT_OIDC_SOURCE_ADMIN_GROUP`), the admin flag
+follows that group in the OpenID Connect `groups` claim and is granted or revoked on every login.
+
+- Exactly one group per provider; the variable holds a single group name, not a list.
+- Only a full team claim `<org>:<team>` is accepted. A bare org name (no `:` or an empty part) is
+  ignored with a warning, and the admin flag stays unchanged.
+- RagFit | Source builds team entries as org name + `:` + lower-case team name, e.g.
+  `ErynoaGroup:platform-admin`. The comparison is case-insensitive and exact.
+- Without the variable (or with a blank one), or without a `groups` claim, the admin flag is unchanged.
+- Patch: [ragfit/patches/0002-oidc-admin-group.patch](ragfit/patches/0002-oidc-admin-group.patch).
+
+The patches are re-checked against every upstream release before they are merged.
 
 ## Build and release
 
