@@ -95,3 +95,8 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 
 **Why:** The RagFit patches get a real spec run before merge; free GitHub-hosted runner, no publish rights.
 
+## 2026-10-13 — 0004 e2e-user-cleanup
+
+**What:** New rake task `ragfit:e2e:delete_users[PREFIX]` (`lib/tasks/ragfit_e2e.rake`) and service `app/services/ragfit/e2e_user_cleanup.rb`. Deletes users whose login starts with a strict E2E prefix (`e2e-` or longer, `[a-z0-9-]` only), optionally limited by `RAGFIT_E2E_LOGINS`. Refuses the whole run if a selected user is an admin or on the password-login bypass list, or a listed login is outside the prefix. Dry run unless `DRY_RUN=0`; logs logins only. Deletion marks the user deleted and runs upstream `Principals::DeleteJob` synchronously. New spec `spec/services/ragfit/e2e_user_cleanup_spec.rb`, run by `erynoa-spec.yml` (paths extended to the new files). README documents a memory-limited run and API token access for E2E service accounts.
+
+**Why:** E2E runs leave test users behind; deleting them through the web UI or the API is not suitable for automation. Patch file: `ragfit/patches/0004-e2e-user-cleanup.patch`.
