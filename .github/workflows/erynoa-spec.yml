@@ -1,12 +1,15 @@
 name: RagFit spec (oidc-admin-group)
 
-# RagFit fork: runs only the RagFit OIDC admin-group spec on a free GitHub-hosted runner.
+# RagFit fork: runs only the RagFit specs (OIDC admin group, E2E user cleanup) on a free GitHub-hosted runner.
 # Allowed automatic trigger: pull_request limited to the paths below (see ragfit/ci/trigger-check.sh).
 on:
   pull_request:
     paths:
       - "modules/openid_connect/**"
       - "ragfit/**"
+      - "app/services/ragfit/**"
+      - "lib/tasks/ragfit_e2e.rake"
+      - "spec/services/ragfit/**"
       - ".github/workflows/erynoa-spec.yml"
   workflow_dispatch:
 
@@ -19,7 +22,7 @@ concurrency:
 
 jobs:
   spec:
-    name: rspec ragfit oidc specs
+    name: rspec ragfit specs
     runs-on: ubuntu-24.04  # pinned; ubuntu-latest moves to 26.04
     timeout-minutes: 45
     services:
@@ -69,3 +72,4 @@ jobs:
           bundle exec rspec
           modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb
           modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_login_gate_spec.rb
+          spec/services/ragfit/e2e_user_cleanup_spec.rb
