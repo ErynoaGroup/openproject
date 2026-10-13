@@ -64,6 +64,20 @@ follows that group in the OpenID Connect `groups` claim and is granted or revoke
 - Without the variable (or with a blank one), or without a `groups` claim, the admin flag is unchanged.
 - Patch: [ragfit/patches/0002-oidc-admin-group.patch](ragfit/patches/0002-oidc-admin-group.patch).
 
+### Login only for listed teams (patch 0003)
+
+With `RAGFIT_OIDC_<PROVIDER>_LOGIN_GROUPS` set (comma-separated team claims, e.g.
+`RAGFIT_OIDC_SOURCE_LOGIN_GROUPS=ErynoaGroup:plan-user`), an OpenID Connect login through that provider
+is allowed only if the `groups` claim contains one of these teams or the provider's admin group.
+Other logins are refused before any account is created or updated, with the usual "not allowed to sign
+in" message.
+
+- Only full team claims `<org>:<team>`; other entries are ignored with a warning.
+- Claim entries must match exactly (case-insensitive, no trimming, no prefix or substring match).
+- No `groups` claim while the gate is active: login refused (fail closed).
+- Without the variable, logins are not restricted (as upstream); a warning is logged once at boot.
+- Patch: [ragfit/patches/0003-oidc-login-gate.patch](ragfit/patches/0003-oidc-login-gate.patch).
+
 The patches are re-checked against every upstream release before they are merged.
 
 ## Build and release

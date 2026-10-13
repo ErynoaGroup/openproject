@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   spec:
-    name: rspec ragfit_admin_group_spec
+    name: rspec ragfit oidc specs
     runs-on: ubuntu-24.04  # pinned; ubuntu-latest moves to 26.04
     timeout-minutes: 45
     services:
@@ -65,4 +65,7 @@ jobs:
         run: bundle exec rails db:create db:migrate
 
       - name: rspec
-        run: bundle exec rspec modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb
+        run: >-
+          bundle exec rspec
+          modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb
+          modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_login_gate_spec.rb

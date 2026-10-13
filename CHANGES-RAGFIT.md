@@ -95,3 +95,14 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 
 **Why:** The RagFit patches get a real spec run before merge; free GitHub-hosted runner, no publish rights.
 
+## 2026-10-13 — 0003 oidc-login-gate
+
+**What:** An OpenID Connect login can be limited to members of listed teams.
+- New `modules/openid_connect/lib/open_project/openid_connect/ragfit_login_gate.rb`: with `RAGFIT_OIDC_<PROVIDER>_LOGIN_GROUPS` set (comma-separated full team claims, e.g. `RAGFIT_OIDC_SOURCE_LOGIN_GROUPS=ErynoaGroup:plan-user`), a login through that provider is approved only if the userinfo `groups` claim contains one of the teams or the provider's `RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP`. Otherwise it is rejected with the upstream message "You are not allowed to sign in." and a log line that names only provider and login. A missing `groups` claim is rejected (fail closed).
+- Matching: claim entries must be strings and equal a team exactly, case-insensitive (Gitea lower-cases team names; consistent with the admin group). Claim entries are not trimmed, so `" ErynoaGroup:plan-user"` or `"ErynoaGroup:plan-user-x"` do not match. Only the variable's entries are trimmed; entries that are not `<org>:<team>` with non-empty parts are ignored with a warning.
+- Without the variable (or without a valid entry) logins behave as upstream; a warning is logged once at boot if no provider has a login gate. Only OpenID Connect providers are gated.
+- `modules/openid_connect/lib/open_project/openid_connect/engine.rb`: registers the gate as an `OpenProject::OmniAuth::Authorization` callback (upstream extension point, evaluated in `Authentication::OmniauthAuthHashContract` before any user lookup or creation).
+- New spec `modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_login_gate_spec.rb`; `.github/workflows/erynoa-spec.yml` runs it next to the admin-group spec.
+
+**Why:** Binding rule 2026-10-13: Source OIDC consumers authorize only on a full team claim, also at login; a user outside the org could sign in as a normal user. Patch file: `ragfit/patches/0003-oidc-login-gate.patch`.
+

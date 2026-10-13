@@ -101,6 +101,12 @@ module OpenProject::OpenIDConnect
       end
     end
 
+    # RagFit patch 0003 (oidc-login-gate): login only for listed teams, see CHANGES-RAGFIT.md.
+    # Upstream OmniAuth authorization callback, evaluated before any user lookup or creation.
+    config.to_prepare do
+      ::OpenProject::OpenIDConnect::RagfitLoginGate.register!
+    end
+
     initializer "openid_connect.configuration" do
       ::Settings::Definition.add :seed_oidc_provider,
                                  description: "Provide a OIDC provider and sync its settings through ENV",
