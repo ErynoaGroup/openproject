@@ -121,6 +121,11 @@ module OpenProject::OpenIDConnect
 
       # Load AuthProvider descendants due to STI
       OpenIDConnect::Provider
+
+      # RagFit patch 0002 (oidc-admin-group): admin flag from a group claim, see CHANGES-RAGFIT.md
+      strategy = OmniAuth::Strategies::OpenIDConnect
+      patch = ::OpenProject::OpenIDConnect::RagfitAdminGroup::StrategyPatch
+      strategy.prepend(patch) unless strategy.ancestors.include?(patch)
     end
   end
 end

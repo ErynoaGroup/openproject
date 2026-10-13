@@ -1,0 +1,156 @@
+From c9ecaa992a39e345d2f5b74856e30f685f45d31f Mon Sep 17 00:00:00 2001
+From: Niklas Klein <niklas.klein@erynoa.com>
+Date: Tue, 13 Oct 2026 09:21:02 +0000
+Subject: [PATCH] ragfit: admin flag from an OIDC group claim (0002
+ oidc-admin-group)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Grants and revokes admin on every login when RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP is set.
+See CHANGES-RAGFIT.md. GPLv3 §10.
+---
+ CHANGES-RAGFIT.md                             |  9 ++++
+ .../lib/open_project/openid_connect/engine.rb |  5 ++
+ .../openid_connect/ragfit_admin_group.rb      | 37 ++++++++++++++
+ .../openid_connect/ragfit_admin_group_spec.rb | 51 +++++++++++++++++++
+ 4 files changed, 102 insertions(+)
+ create mode 100644 modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb
+ create mode 100644 modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb
+
+diff --git a/CHANGES-RAGFIT.md b/CHANGES-RAGFIT.md
+index a2c8840..a4cbdb1 100644
+--- a/CHANGES-RAGFIT.md
++++ b/CHANGES-RAGFIT.md
+@@ -76,3 +76,12 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
+ **What:** `.github/workflows/erynoa-build.yml` (`publish` job) adds a keyless `cosign attest --type slsaprovenance1` next to the existing signature and SPDX attestation. The predicate is generated in the workflow and carries the image digest; the step refuses to run for anything but a release tag `ragfit-plan-vX.Y.Z`. The verify step also checks the `slsaprovenance1` attestation, with the identity anchored to the exact release tag ref, and compares the verified provenance subject with the digest the registry resolves for the release tag. The per-arch build digests must match the index manifests. `meta` sets `release=true` only when the workflow runs on a `ragfit-plan-vX.Y.Z` tag ref (tag push, or a dispatch started on that tag); otherwise build, publish and release are skipped. cosign pinned to v3.0.6 via `cosign-release`.
+ 
+ **Why:** Deployments check signature, SPDX SBOM and SLSA provenance by digest before rollout.
++## 2026-10-13 — 0002 oidc-admin-group
++
++**What:** The OpenProject admin flag can follow a group in the OIDC `groups` claim, granted and revoked on every login.
++- New `modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb`: with `RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP` set (provider slug in upper case, e.g. `RAGFIT_OIDC_SOURCE_ADMIN_GROUP`), the OpenID Connect strategy returns `admin: true` when the userinfo `groups` claim contains that group (case-insensitive, exact entry) and `admin: false` when the claim is present without it. Without the variable or without a `groups` array nothing is returned and the admin flag stays as it is.
++- `modules/openid_connect/lib/open_project/openid_connect/engine.rb`: prepends the module to `OmniAuth::Strategies::OpenIDConnect` (`omniauth_hash_to_user_attributes`, the existing upstream extension point in `Authentication::OmniauthService`). Upstream `update_admin_flag` then grants or revokes admin on each login.
++- New spec `modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb`.
++
++**Why:** RagFit | Source sends groups as `org` and `org:team` entries but no boolean admin claim; upstream can only map admin from a boolean claim. Patch file: `ragfit/patches/0002-oidc-admin-group.patch`.
++
+diff --git a/modules/openid_connect/lib/open_project/openid_connect/engine.rb b/modules/openid_connect/lib/open_project/openid_connect/engine.rb
+index abb0328..498a2b7 100644
+--- a/modules/openid_connect/lib/open_project/openid_connect/engine.rb
++++ b/modules/openid_connect/lib/open_project/openid_connect/engine.rb
+@@ -121,6 +121,11 @@ module OpenProject::OpenIDConnect
+ 
+       # Load AuthProvider descendants due to STI
+       OpenIDConnect::Provider
++
++      # RagFit patch 0002 (oidc-admin-group): admin flag from a group claim, see CHANGES-RAGFIT.md
++      strategy = OmniAuth::Strategies::OpenIDConnect
++      patch = ::OpenProject::OpenIDConnect::RagfitAdminGroup::StrategyPatch
++      strategy.prepend(patch) unless strategy.ancestors.include?(patch)
+     end
+   end
+ end
+diff --git a/modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb b/modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb
+new file mode 100644
+index 0000000..e922395
+--- /dev/null
++++ b/modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb
+@@ -0,0 +1,37 @@
++# frozen_string_literal: true
++
++# RagFit patch 0002 (oidc-admin-group, 2026-10-13): set the admin flag from a group claim on every OIDC login.
++# GPLv3 §10 modification, see CHANGES-RAGFIT.md.
++#
++# Upstream maps "admin" only from a boolean claim (attribute_map admin). Some providers only send a
++# "groups" array (e.g. "org" and "org:team" entries). With RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP set, the
++# strategy returns admin: true when that group is in the userinfo "groups" claim and admin: false when the
++# claim is present but does not contain it. Authentication::OmniauthService#update_admin_flag then grants
++# or revokes admin on every login. Without the variable, or without a "groups" claim, nothing changes.
++module OpenProject::OpenIDConnect::RagfitAdminGroup
++  module_function
++
++  def env_name(provider_name)
++    "RAGFIT_OIDC_#{provider_name.to_s.upcase.gsub(/[^A-Z0-9]/, '_')}_ADMIN_GROUP"
++  end
++
++  # Returns true, false or nil (nil: do not touch the admin flag).
++  def admin_for(provider_name, raw_info, env: ENV)
++    group = env[env_name(provider_name)].to_s.strip
++    return nil if group.empty?
++
++    groups = raw_info.respond_to?(:[]) ? (raw_info["groups"] || raw_info[:groups]) : nil
++    return nil unless groups.is_a?(Array)
++
++    groups.any? { |g| g.to_s.strip.casecmp?(group) }
++  end
++
++  module StrategyPatch
++    def omniauth_hash_to_user_attributes(auth_hash)
++      attributes = defined?(super) ? super : {}
++      raw_info = auth_hash.dig("extra", "raw_info") || {}
++      admin = OpenProject::OpenIDConnect::RagfitAdminGroup.admin_for(name, raw_info)
++      admin.nil? ? attributes : attributes.merge(admin:)
++    end
++  end
++end
+diff --git a/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb b/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb
+new file mode 100644
+index 0000000..a5782a4
+--- /dev/null
++++ b/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb
+@@ -0,0 +1,51 @@
++# frozen_string_literal: true
++
++require "spec_helper"
++
++RSpec.describe OpenProject::OpenIDConnect::RagfitAdminGroup do
++  let(:env) { { "RAGFIT_OIDC_SOURCE_ADMIN_GROUP" => "acme:platform-admin" } }
++
++  describe ".admin_for" do
++    it "is true when the group is in the claim (case-insensitive)" do
++      expect(described_class.admin_for("source", { "groups" => %w[acme Acme:Platform-Admin] }, env:)).to be(true)
++    end
++
++    it "is false when the claim is present without the group, so admin is revoked" do
++      expect(described_class.admin_for("source", { "groups" => %w[acme acme:dev] }, env:)).to be(false)
++      expect(described_class.admin_for("source", { "groups" => [] }, env:)).to be(false)
++    end
++
++    it "is nil without a groups claim" do
++      expect(described_class.admin_for("source", {}, env:)).to be_nil
++      expect(described_class.admin_for("source", { "groups" => "acme:platform-admin" }, env:)).to be_nil
++    end
++
++    it "is nil when the variable is not set for this provider" do
++      expect(described_class.admin_for("other", { "groups" => %w[acme:platform-admin] }, env:)).to be_nil
++      expect(described_class.admin_for("source", { "groups" => %w[acme:platform-admin] }, env: {})).to be_nil
++    end
++
++    it "does not match a group that only shares a prefix" do
++      expect(described_class.admin_for("source", { "groups" => %w[acme:platform-admins] }, env:)).to be(false)
++    end
++  end
++
++  describe "strategy patch" do
++    it "is prepended to the OpenID Connect strategy" do
++      expect(OmniAuth::Strategies::OpenIDConnect.ancestors).to include(described_class::StrategyPatch)
++    end
++
++    it "adds admin to the user attributes, also false" do
++      strategy = OmniAuth::Strategies::OpenIDConnect.new(nil, name: "source")
++      hash = OmniAuth::AuthHash.new(extra: { raw_info: { "groups" => %w[acme:dev] } })
++      stub_const("ENV", ENV.to_h.merge(env))
++      expect(strategy.omniauth_hash_to_user_attributes(hash)).to include(admin: false)
++    end
++
++    it "adds nothing without a groups claim" do
++      strategy = OmniAuth::Strategies::OpenIDConnect.new(nil, name: "source")
++      stub_const("ENV", ENV.to_h.merge(env))
++      expect(strategy.omniauth_hash_to_user_attributes(OmniAuth::AuthHash.new(extra: { raw_info: {} }))).not_to have_key(:admin)
++    end
++  end
++end
+-- 
+2.47.3
+
