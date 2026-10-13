@@ -95,3 +95,16 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 
 **Why:** The RagFit patches get a real spec run before merge; free GitHub-hosted runner, no publish rights.
 
+## 2026-10-13 — 0003 oidc-login-gate
+
+**What:** OpenID Connect logins are limited to members of listed teams.
+- New `modules/openid_connect/lib/open_project/openid_connect/ragfit_login_gate.rb`: `RAGFIT_OIDC_<PROVIDER>_LOGIN_GROUPS` (comma-separated full team claims, e.g. `RAGFIT_OIDC_SOURCE_LOGIN_GROUPS=ErynoaGroup:plan-user`) lists the teams that may sign in through an OpenID Connect provider; the provider's `RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP` counts as well. A login is approved only if the userinfo `groups` claim contains one of them. Otherwise it is rejected with the upstream message "You are not allowed to sign in." and a log line that names only provider and login.
+- Fail closed: a missing `groups` claim, or a provider without a valid `LOGIN_GROUPS` value, rejects the login. Providers configured through `OPENPROJECT_OPENID__CONNECT_<NAME>_*` without a valid value are logged as an error at boot.
+- Password login: `Users::PasswordLogin.allowed?` returns false for users linked to an OpenID Connect provider (`user_auth_provider_links`), so they cannot sign in with a password (web login, basic auth). Local accounts without such a link keep password login.
+- Matching: claim entries must be strings and equal a team exactly, case-insensitive (Gitea lower-cases team names; consistent with the admin group). Claim entries are not trimmed, so `" ErynoaGroup:plan-user"` or `"ErynoaGroup:plan-user-x"` do not match. Only the variable's entries are trimmed; entries that are not `<org>:<team>` with non-empty parts are ignored with a warning.
+- Only OpenID Connect providers are gated.
+- `modules/openid_connect/lib/open_project/openid_connect/engine.rb`: registers the gate as an `OpenProject::OmniAuth::Authorization` callback (upstream extension point, evaluated in `Authentication::OmniauthAuthHashContract` before any user lookup or creation).
+- New spec `modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_login_gate_spec.rb`; `.github/workflows/erynoa-spec.yml` runs it next to the admin-group spec.
+
+**Why:** OIDC logins are authorized only on a full team claim, also at login; before this change a user outside the organization could sign in as a normal user. Patch file: `ragfit/patches/0003-oidc-login-gate.patch`.
+
