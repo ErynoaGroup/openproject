@@ -1,4 +1,4 @@
-From c9ecaa992a39e345d2f5b74856e30f685f45d31f Mon Sep 17 00:00:00 2001
+From 3585e166892281eaf06d541e797acf1f4210c503 Mon Sep 17 00:00:00 2001
 From: Niklas Klein <niklas.klein@erynoa.com>
 Date: Tue, 13 Oct 2026 09:21:02 +0000
 Subject: [PATCH] ragfit: admin flag from an OIDC group claim (0002
@@ -10,26 +10,29 @@ Content-Transfer-Encoding: 8bit
 Grants and revokes admin on every login when RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP is set.
 See CHANGES-RAGFIT.md. GPLv3 §10.
 ---
- CHANGES-RAGFIT.md                             |  9 ++++
+ CHANGES-RAGFIT.md                             | 12 ++++
  .../lib/open_project/openid_connect/engine.rb |  5 ++
- .../openid_connect/ragfit_admin_group.rb      | 37 ++++++++++++++
- .../openid_connect/ragfit_admin_group_spec.rb | 51 +++++++++++++++++++
- 4 files changed, 102 insertions(+)
+ .../openid_connect/ragfit_admin_group.rb      | 43 ++++++++++++
+ .../openid_connect/ragfit_admin_group_spec.rb | 68 +++++++++++++++++++
+ 4 files changed, 128 insertions(+)
  create mode 100644 modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb
  create mode 100644 modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb
 
 diff --git a/CHANGES-RAGFIT.md b/CHANGES-RAGFIT.md
-index a2c8840..a4cbdb1 100644
+index a2c8840..3623e22 100644
 --- a/CHANGES-RAGFIT.md
 +++ b/CHANGES-RAGFIT.md
-@@ -76,3 +76,12 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
+@@ -76,3 +76,15 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
  **What:** `.github/workflows/erynoa-build.yml` (`publish` job) adds a keyless `cosign attest --type slsaprovenance1` next to the existing signature and SPDX attestation. The predicate is generated in the workflow and carries the image digest; the step refuses to run for anything but a release tag `ragfit-plan-vX.Y.Z`. The verify step also checks the `slsaprovenance1` attestation, with the identity anchored to the exact release tag ref, and compares the verified provenance subject with the digest the registry resolves for the release tag. The per-arch build digests must match the index manifests. `meta` sets `release=true` only when the workflow runs on a `ragfit-plan-vX.Y.Z` tag ref (tag push, or a dispatch started on that tag); otherwise build, publish and release are skipped. cosign pinned to v3.0.6 via `cosign-release`.
  
  **Why:** Deployments check signature, SPDX SBOM and SLSA provenance by digest before rollout.
++
 +## 2026-10-13 — 0002 oidc-admin-group
 +
 +**What:** The OpenProject admin flag can follow a group in the OIDC `groups` claim, granted and revoked on every login.
-+- New `modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb`: with `RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP` set (provider slug in upper case, e.g. `RAGFIT_OIDC_SOURCE_ADMIN_GROUP`), the OpenID Connect strategy returns `admin: true` when the userinfo `groups` claim contains that group (case-insensitive, exact entry) and `admin: false` when the claim is present without it. Without the variable or without a `groups` array nothing is returned and the admin flag stays as it is.
++- New `modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb`: with `RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP` set (provider slug in upper case, e.g. `RAGFIT_OIDC_SOURCE_ADMIN_GROUP`), the OpenID Connect strategy returns `admin: true` when the userinfo `groups` claim contains that group (case-insensitive, exact entry) and `admin: false` when the claim is present without it. Without the variable (or with a blank one) or without a `groups` array nothing is returned and the admin flag stays as it is. Entries in the claim that are not strings are ignored; the claim is read from `groups` or `:groups`.
++- Exactly one group per provider: the variable holds a single group name, not a list.
++- RagFit | Source (Gitea) builds team entries as org name + `:` + lower-case team name, e.g. `ErynoaGroup:platform-admin`. Set the variable to exactly that string (the comparison is case-insensitive and exact, no prefix match).
 +- `modules/openid_connect/lib/open_project/openid_connect/engine.rb`: prepends the module to `OmniAuth::Strategies::OpenIDConnect` (`omniauth_hash_to_user_attributes`, the existing upstream extension point in `Authentication::OmniauthService`). Upstream `update_admin_flag` then grants or revokes admin on each login.
 +- New spec `modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb`.
 +
@@ -53,10 +56,10 @@ index abb0328..498a2b7 100644
  end
 diff --git a/modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb b/modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb
 new file mode 100644
-index 0000000..e922395
+index 0000000..9fc06a9
 --- /dev/null
 +++ b/modules/openid_connect/lib/open_project/openid_connect/ragfit_admin_group.rb
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,43 @@
 +# frozen_string_literal: true
 +
 +# RagFit patch 0002 (oidc-admin-group, 2026-10-13): set the admin flag from a group claim on every OIDC login.
@@ -66,7 +69,13 @@ index 0000000..e922395
 +# "groups" array (e.g. "org" and "org:team" entries). With RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP set, the
 +# strategy returns admin: true when that group is in the userinfo "groups" claim and admin: false when the
 +# claim is present but does not contain it. Authentication::OmniauthService#update_admin_flag then grants
-+# or revokes admin on every login. Without the variable, or without a "groups" claim, nothing changes.
++# or revokes admin on every login. Without the variable (or a blank one), or without a "groups" claim,
++# nothing changes.
++#
++# Exactly one group per provider: the variable holds a single group name, not a list. Entries in the claim
++# that are not strings are ignored. The comparison is case-insensitive and exact (no prefix match).
++# RagFit | Source (Gitea) builds team entries as org.Name + ":" + lower-case team name, e.g.
++# "ErynoaGroup:platform-admin"; set the variable to exactly that string.
 +module OpenProject::OpenIDConnect::RagfitAdminGroup
 +  module_function
 +
@@ -82,7 +91,7 @@ index 0000000..e922395
 +    groups = raw_info.respond_to?(:[]) ? (raw_info["groups"] || raw_info[:groups]) : nil
 +    return nil unless groups.is_a?(Array)
 +
-+    groups.any? { |g| g.to_s.strip.casecmp?(group) }
++    groups.any? { |g| g.is_a?(String) && g.strip.casecmp?(group) }
 +  end
 +
 +  module StrategyPatch
@@ -96,10 +105,10 @@ index 0000000..e922395
 +end
 diff --git a/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb b/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb
 new file mode 100644
-index 0000000..a5782a4
+index 0000000..9efc1ec
 --- /dev/null
 +++ b/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,68 @@
 +# frozen_string_literal: true
 +
 +require "spec_helper"
@@ -125,6 +134,23 @@ index 0000000..a5782a4
 +    it "is nil when the variable is not set for this provider" do
 +      expect(described_class.admin_for("other", { "groups" => %w[acme:platform-admin] }, env:)).to be_nil
 +      expect(described_class.admin_for("source", { "groups" => %w[acme:platform-admin] }, env: {})).to be_nil
++    end
++
++    it "is nil when the variable is blank (whitespace only), so admin stays unchanged" do
++      blank = { "RAGFIT_OIDC_SOURCE_ADMIN_GROUP" => "  \t " }
++      expect(described_class.admin_for("source", { "groups" => %w[acme:platform-admin] }, env: blank)).to be_nil
++      expect(described_class.admin_for("source", { "groups" => [] }, env: blank)).to be_nil
++    end
++
++    it "reads the claim from a symbol key :groups like \"groups\"" do
++      expect(described_class.admin_for("source", { groups: %w[acme:platform-admin] }, env:)).to be(true)
++      expect(described_class.admin_for("source", { groups: %w[acme:dev] }, env:)).to be(false)
++    end
++
++    it "ignores entries that are not strings without raising" do
++      groups = [nil, 42, :"acme:platform-admin", { "name" => "acme:platform-admin" }, ["acme:platform-admin"]]
++      expect(described_class.admin_for("source", { "groups" => groups }, env:)).to be(false)
++      expect(described_class.admin_for("source", { "groups" => groups + ["acme:platform-admin"] }, env:)).to be(true)
 +    end
 +
 +    it "does not match a group that only shares a prefix" do

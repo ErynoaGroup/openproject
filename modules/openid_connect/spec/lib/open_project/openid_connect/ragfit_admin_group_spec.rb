@@ -25,6 +25,23 @@ RSpec.describe OpenProject::OpenIDConnect::RagfitAdminGroup do
       expect(described_class.admin_for("source", { "groups" => %w[acme:platform-admin] }, env: {})).to be_nil
     end
 
+    it "is nil when the variable is blank (whitespace only), so admin stays unchanged" do
+      blank = { "RAGFIT_OIDC_SOURCE_ADMIN_GROUP" => "  \t " }
+      expect(described_class.admin_for("source", { "groups" => %w[acme:platform-admin] }, env: blank)).to be_nil
+      expect(described_class.admin_for("source", { "groups" => [] }, env: blank)).to be_nil
+    end
+
+    it "reads the claim from a symbol key :groups like \"groups\"" do
+      expect(described_class.admin_for("source", { groups: %w[acme:platform-admin] }, env:)).to be(true)
+      expect(described_class.admin_for("source", { groups: %w[acme:dev] }, env:)).to be(false)
+    end
+
+    it "ignores entries that are not strings without raising" do
+      groups = [nil, 42, :"acme:platform-admin", { "name" => "acme:platform-admin" }, ["acme:platform-admin"]]
+      expect(described_class.admin_for("source", { "groups" => groups }, env:)).to be(false)
+      expect(described_class.admin_for("source", { "groups" => groups + ["acme:platform-admin"] }, env:)).to be(true)
+    end
+
     it "does not match a group that only shares a prefix" do
       expect(described_class.admin_for("source", { "groups" => %w[acme:platform-admins] }, env:)).to be(false)
     end

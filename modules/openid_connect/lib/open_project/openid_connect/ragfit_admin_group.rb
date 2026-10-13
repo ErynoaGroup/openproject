@@ -7,7 +7,13 @@
 # "groups" array (e.g. "org" and "org:team" entries). With RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP set, the
 # strategy returns admin: true when that group is in the userinfo "groups" claim and admin: false when the
 # claim is present but does not contain it. Authentication::OmniauthService#update_admin_flag then grants
-# or revokes admin on every login. Without the variable, or without a "groups" claim, nothing changes.
+# or revokes admin on every login. Without the variable (or a blank one), or without a "groups" claim,
+# nothing changes.
+#
+# Exactly one group per provider: the variable holds a single group name, not a list. Entries in the claim
+# that are not strings are ignored. The comparison is case-insensitive and exact (no prefix match).
+# RagFit | Source (Gitea) builds team entries as org.Name + ":" + lower-case team name, e.g.
+# "ErynoaGroup:platform-admin"; set the variable to exactly that string.
 module OpenProject::OpenIDConnect::RagfitAdminGroup
   module_function
 
@@ -23,7 +29,7 @@ module OpenProject::OpenIDConnect::RagfitAdminGroup
     groups = raw_info.respond_to?(:[]) ? (raw_info["groups"] || raw_info[:groups]) : nil
     return nil unless groups.is_a?(Array)
 
-    groups.any? { |g| g.to_s.strip.casecmp?(group) }
+    groups.any? { |g| g.is_a?(String) && g.strip.casecmp?(group) }
   end
 
   module StrategyPatch
