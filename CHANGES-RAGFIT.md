@@ -108,3 +108,13 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 
 **Why:** OIDC logins are authorized only on a full team claim, also at login; before this change a user outside the organization could sign in as a normal user. Patch file: `ragfit/patches/0003-oidc-login-gate.patch`.
 
+## 2026-10-13 — 0003 oidc-login-gate: logging, rollout task, docs
+
+**What:**
+- `ragfit_login_gate.rb`: `rejects?` (pure check) and `OmniauthServicePatch`, prepended to `Authentication::OmniauthService#call`: for a gate rejection it validates the contract (the gate logs provider and login) and returns the failure without the upstream error logging of the full auth hash and subject id. Other failures keep upstream logging. Header documents why non-OIDC providers are not gated.
+- New `modules/openid_connect/lib/open_project/openid_connect/ragfit_revoke_ungated.rb` and rake task `ragfit:oidc:revoke_ungated[PROVIDER]` (`lib/tasks/ragfit_oidc.rake`): revokes sessions, API/RSS/iCal/autologin tokens and OAuth access tokens of users linked to an OpenID Connect provider; never local accounts; `RAGFIT_OIDC_KEEP_LOGINS` skips logins; dry run unless `DRY_RUN=0`; logs logins and counts only.
+- New spec `modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_revoke_ungated_spec.rb`, run by `erynoa-spec.yml`.
+- README: rollout notes, ungated non-OIDC providers, relation to the upstream `password_login` / `except_sso` setting.
+- `ragfit/patches/0003-oidc-login-gate.patch` regenerated to include these changes.
+
+**Why:** The rejection log must not contain claims; access issued before the gate must end at rollout, because membership is checked at login only.

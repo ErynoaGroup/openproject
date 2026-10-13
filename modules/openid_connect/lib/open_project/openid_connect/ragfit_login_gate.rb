@@ -21,6 +21,14 @@
 # Password login: users linked to an OpenID Connect provider (user_auth_provider_links) cannot sign in
 # with a password or API basic auth (Users::PasswordLogin.allowed? returns false), so the gate cannot be
 # bypassed. Local accounts without such a link (e.g. a break-glass admin) keep password login.
+#
+# Logging (2026-10-13 follow-up): a rejected login is logged as provider and login only. For a gate
+# rejection Authentication::OmniauthService#call returns the failure itself, so upstream does not log the
+# full auth hash (inspect_response) or the uid line for it. Other failures keep the upstream logging.
+#
+# Non-OIDC providers (SAML, other OmniAuth strategies) are approved unchanged: this deployment signs in
+# through OpenID Connect only, those providers carry no team claim to check, and gating them would need a
+# provider-specific claim mapping. Enable such a provider only together with its own authorization.
 module OpenProject::OpenIDConnect::RagfitLoginGate
   module_function
 
@@ -72,9 +80,19 @@ module OpenProject::OpenIDConnect::RagfitLoginGate
     true
   end
 
+  # true if the gate rejects this auth hash (no logging, no side effects).
+  def rejects?(auth_hash, env: ENV)
+    provider = auth_hash.respond_to?(:provider) ? auth_hash.provider.to_s : ""
+    return false if provider.empty? || !oidc_provider?(provider)
+
+    raw_info = auth_hash.dig("extra", "raw_info") || {}
+    !allowed?(provider, raw_info, env:)
+  end
+
   # Upstream extension point: OpenProject::OmniAuth::Authorization callback.
   def authorize(decision, auth_hash, env: ENV)
     provider = auth_hash&.provider.to_s
+    # Non-OIDC providers stay ungated (see header).
     return decision.approve if provider.empty? || !oidc_provider?(provider)
 
     raw_info = auth_hash.dig("extra", "raw_info") || {}
@@ -93,6 +111,7 @@ module OpenProject::OpenIDConnect::RagfitLoginGate
       authorize(decision, auth_hash)
     end
     ::Users::PasswordLogin.singleton_class.prepend(PasswordLoginPatch)
+    ::Authentication::OmniauthService.prepend(OmniauthServicePatch)
     @registered = true
     check_env_providers!
   end
@@ -117,6 +136,17 @@ module OpenProject::OpenIDConnect::RagfitLoginGate
     return false unless user.respond_to?(:user_auth_provider_links)
 
     user.user_auth_provider_links.any? { |link| link.auth_provider.is_a?(::OpenIDConnect::Provider) }
+  end
+
+  # Gate rejection: validate (the callback logs provider and login) and return the failure without the
+  # upstream error logging, which would write the full auth hash (claims, e-mail, groups) to the log.
+  module OmniauthServicePatch
+    def call(additional_user_params = nil)
+      return super unless OpenProject::OpenIDConnect::RagfitLoginGate.rejects?(auth_hash)
+
+      contract.validate
+      ServiceResult.failure(errors: contract.errors)
+    end
   end
 
   module PasswordLoginPatch
