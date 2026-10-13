@@ -119,6 +119,35 @@ RAILS_ENV=production DRY_RUN=0 bundle exec rake 'ragfit:oidc:revoke_ungated[sour
 
 The patches are re-checked against every upstream release before they are merged.
 
+## E2E test users (patch 0004)
+
+Rake task `ragfit:e2e:delete_users[PREFIX]` removes users created by end-to-end tests.
+
+- Deletes only users whose login starts with `PREFIX` (default `e2e-`; any prefix must start with `e2e-` and use only `a-z`, `0-9`, `-`; case-insensitive). Other prefixes are refused.
+- `RAGFIT_E2E_LOGINS=e2e-a,e2e-b` limits the run to these logins; a login outside the prefix refuses the run.
+- If any selected user is an admin or on the password-login bypass list, the whole run is refused and nothing is deleted.
+- Dry run by default; `DRY_RUN=0` deletes. Output and log contain logins only.
+- Deletion is the upstream path, run synchronously: the user is marked deleted (as `Users::DeleteService` does) and `Principals::DeleteJob` runs in the same process, replacing references with the deleted-user placeholder. No background worker is needed.
+- Exit code 1 on refusal or error. If a deletion fails (the job raises or rolls back), the user's
+  previous status is restored, the run stops and reports the login and the error class. Fix the cause
+  (see the Rails log) and run the task again; users already deleted are gone, users left marked deleted
+  by an interrupted run are picked up and finished.
+
+Run it with a memory limit, either `kubectl exec` into a running web pod or as a one-off Kubernetes Job with the web image and its env, `resources.limits.memory` set (e.g. `1Gi`):
+
+```sh
+RAILS_ENV=production MALLOC_ARENA_MAX=2 bundle exec rake 'ragfit:e2e:delete_users[e2e-]'            # dry run
+RAILS_ENV=production MALLOC_ARENA_MAX=2 DRY_RUN=0 bundle exec rake 'ragfit:e2e:delete_users[e2e-]'  # delete
+```
+
+`MALLOC_ARENA_MAX=2` keeps glibc arenas small. Rake loads the environment without eager loading (Rails ignores `config.eager_load` for rake tasks), so only the classes used are loaded.
+
+### API 401 for the seed admin
+
+API v3 basic auth does not accept a login and password. It is only active when `apiv3_enable_basic_auth` is on, and then the user name must be the literal `apikey` and the password an API token (`apikey:<token>`). A request with the admin login and password therefore gets 401.
+
+Alternative for E2E automation: create a dedicated non-admin service account (do not give it an `e2e-` login, so cleanup never matches it), give it only the project roles the tests need, create an API token for it (My account, Access tokens, API) and call the API with `Authorization: Bearer <token>` or basic auth `apikey:<token>`. Keep the token in the secret store of the test runner and revoke it when not needed. Users the tests create are then removed with the rake task above.
+
 ## Build and release
 
 Images are built only for deliberate releases:
