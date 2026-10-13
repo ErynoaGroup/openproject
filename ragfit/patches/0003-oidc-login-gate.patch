@@ -1,28 +1,29 @@
-From e0602ab08b2b56ecb324f860fd6ee4681982b87d Mon Sep 17 00:00:00 2001
+From d8a5d1db7b46a072aff08746fcf65592a4aad551 Mon Sep 17 00:00:00 2001
 From: Niklas Klein <niklas.klein@erynoa.com>
 Date: Tue, 13 Oct 2026 13:30:00 +0000
 Subject: [PATCH] ragfit: OIDC login only for listed teams (0003
  oidc-login-gate)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 
-Rejects OIDC logins without an allowed team (fail closed) and password login for OIDC-linked users.
-See CHANGES-RAGFIT.md. GPLv3 §10.
 ---
- CHANGES-RAGFIT.md                             |  13 ++
+ CHANGES-RAGFIT.md                             |  23 +++
+ lib/tasks/ragfit_oidc.rake                    |  12 ++
  .../lib/open_project/openid_connect/engine.rb |   6 +
- .../openid_connect/ragfit_login_gate.rb       | 129 +++++++++++++++++
- .../openid_connect/ragfit_login_gate_spec.rb  | 132 ++++++++++++++++++
- 4 files changed, 280 insertions(+)
+ .../openid_connect/ragfit_login_gate.rb       | 159 ++++++++++++++++++
+ .../openid_connect/ragfit_revoke_ungated.rb   |  85 ++++++++++
+ .../openid_connect/ragfit_login_gate_spec.rb  | 132 +++++++++++++++
+ .../ragfit_revoke_ungated_spec.rb             |  88 ++++++++++
+ 7 files changed, 505 insertions(+)
+ create mode 100644 lib/tasks/ragfit_oidc.rake
  create mode 100644 modules/openid_connect/lib/open_project/openid_connect/ragfit_login_gate.rb
+ create mode 100644 modules/openid_connect/lib/open_project/openid_connect/ragfit_revoke_ungated.rb
  create mode 100644 modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_login_gate_spec.rb
+ create mode 100644 modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_revoke_ungated_spec.rb
 
 diff --git a/CHANGES-RAGFIT.md b/CHANGES-RAGFIT.md
-index cc3483a..a801179 100644
+index cc3483a..914a0aa 100644
 --- a/CHANGES-RAGFIT.md
 +++ b/CHANGES-RAGFIT.md
-@@ -95,3 +95,16 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
+@@ -95,3 +95,26 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
  
  **Why:** The RagFit patches get a real spec run before merge; free GitHub-hosted runner, no publish rights.
  
@@ -39,6 +40,34 @@ index cc3483a..a801179 100644
 +
 +**Why:** OIDC logins are authorized only on a full team claim, also at login; before this change a user outside the organization could sign in as a normal user. Patch file: `ragfit/patches/0003-oidc-login-gate.patch`.
 +
++## 2026-10-13 — 0003 oidc-login-gate: logging, rollout task, docs
++
++**What:**
++- `ragfit_login_gate.rb`: `rejects?` (pure check) and `OmniauthServicePatch`, prepended to `Authentication::OmniauthService#call`: for a gate rejection it validates the contract (the gate logs provider and login) and returns the failure without the upstream error logging of the full auth hash and subject id. Other failures keep upstream logging. Header documents why non-OIDC providers are not gated.
++- New `modules/openid_connect/lib/open_project/openid_connect/ragfit_revoke_ungated.rb` and rake task `ragfit:oidc:revoke_ungated[PROVIDER]` (`lib/tasks/ragfit_oidc.rake`): revokes sessions, API/RSS/iCal/autologin tokens and OAuth access tokens of users linked to an OpenID Connect provider; never local accounts; `RAGFIT_OIDC_KEEP_LOGINS` skips logins; dry run unless `DRY_RUN=0`; logs logins and counts only.
++- New spec `modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_revoke_ungated_spec.rb`, run by `erynoa-spec.yml`.
++- README: rollout notes, ungated non-OIDC providers, relation to the upstream `password_login` / `except_sso` setting.
++- `ragfit/patches/0003-oidc-login-gate.patch` regenerated to include these changes.
++
++**Why:** The rejection log must not contain claims; access issued before the gate must end at rollout, because membership is checked at login only.
+diff --git a/lib/tasks/ragfit_oidc.rake b/lib/tasks/ragfit_oidc.rake
+new file mode 100644
+index 0000000..ae7a2c4
+--- /dev/null
++++ b/lib/tasks/ragfit_oidc.rake
+@@ -0,0 +1,12 @@
++# frozen_string_literal: true
++
++# RagFit patch 0003 (oidc-login-gate): see OpenProject::OpenIDConnect::RagfitRevokeUngated and README (login gate rollout).
++namespace :ragfit do
++  namespace :oidc do
++    desc "Revoke sessions and tokens of users linked to an OpenID Connect provider (optional provider slug). " \
++         "Dry run unless DRY_RUN=0. RAGFIT_OIDC_KEEP_LOGINS=a,b skips these logins."
++    task :revoke_ungated, [:provider] => :environment do |_task, args|
++      OpenProject::OpenIDConnect::RagfitRevokeUngated.from_env(args[:provider]).call
++    end
++  end
++end
 diff --git a/modules/openid_connect/lib/open_project/openid_connect/engine.rb b/modules/openid_connect/lib/open_project/openid_connect/engine.rb
 index 6dc94ae..1465ff8 100644
 --- a/modules/openid_connect/lib/open_project/openid_connect/engine.rb
@@ -58,10 +87,10 @@ index 6dc94ae..1465ff8 100644
                                   description: "Provide a OIDC provider and sync its settings through ENV",
 diff --git a/modules/openid_connect/lib/open_project/openid_connect/ragfit_login_gate.rb b/modules/openid_connect/lib/open_project/openid_connect/ragfit_login_gate.rb
 new file mode 100644
-index 0000000..a9b75a1
+index 0000000..d02f4e8
 --- /dev/null
 +++ b/modules/openid_connect/lib/open_project/openid_connect/ragfit_login_gate.rb
-@@ -0,0 +1,129 @@
+@@ -0,0 +1,159 @@
 +# frozen_string_literal: true
 +
 +# RagFit patch 0003 (oidc-login-gate, 2026-10-13): allow an OIDC login only for members of listed teams.
@@ -85,6 +114,14 @@ index 0000000..a9b75a1
 +# Password login: users linked to an OpenID Connect provider (user_auth_provider_links) cannot sign in
 +# with a password or API basic auth (Users::PasswordLogin.allowed? returns false), so the gate cannot be
 +# bypassed. Local accounts without such a link (e.g. a break-glass admin) keep password login.
++#
++# Logging (2026-10-13 follow-up): a rejected login is logged as provider and login only. For a gate
++# rejection Authentication::OmniauthService#call returns the failure itself, so upstream does not log the
++# full auth hash (inspect_response) or the uid line for it. Other failures keep the upstream logging.
++#
++# Non-OIDC providers (SAML, other OmniAuth strategies) are approved unchanged: this deployment signs in
++# through OpenID Connect only, those providers carry no team claim to check, and gating them would need a
++# provider-specific claim mapping. Enable such a provider only together with its own authorization.
 +module OpenProject::OpenIDConnect::RagfitLoginGate
 +  module_function
 +
@@ -136,9 +173,19 @@ index 0000000..a9b75a1
 +    true
 +  end
 +
++  # true if the gate rejects this auth hash (no logging, no side effects).
++  def rejects?(auth_hash, env: ENV)
++    provider = auth_hash.respond_to?(:provider) ? auth_hash.provider.to_s : ""
++    return false if provider.empty? || !oidc_provider?(provider)
++
++    raw_info = auth_hash.dig("extra", "raw_info") || {}
++    !allowed?(provider, raw_info, env:)
++  end
++
 +  # Upstream extension point: OpenProject::OmniAuth::Authorization callback.
 +  def authorize(decision, auth_hash, env: ENV)
 +    provider = auth_hash&.provider.to_s
++    # Non-OIDC providers stay ungated (see header).
 +    return decision.approve if provider.empty? || !oidc_provider?(provider)
 +
 +    raw_info = auth_hash.dig("extra", "raw_info") || {}
@@ -157,6 +204,7 @@ index 0000000..a9b75a1
 +      authorize(decision, auth_hash)
 +    end
 +    ::Users::PasswordLogin.singleton_class.prepend(PasswordLoginPatch)
++    ::Authentication::OmniauthService.prepend(OmniauthServicePatch)
 +    @registered = true
 +    check_env_providers!
 +  end
@@ -183,11 +231,113 @@ index 0000000..a9b75a1
 +    user.user_auth_provider_links.any? { |link| link.auth_provider.is_a?(::OpenIDConnect::Provider) }
 +  end
 +
++  # Gate rejection: validate (the callback logs provider and login) and return the failure without the
++  # upstream error logging, which would write the full auth hash (claims, e-mail, groups) to the log.
++  module OmniauthServicePatch
++    def call(additional_user_params = nil)
++      return super unless OpenProject::OpenIDConnect::RagfitLoginGate.rejects?(auth_hash)
++
++      contract.validate
++      ServiceResult.failure(errors: contract.errors)
++    end
++  end
++
 +  module PasswordLoginPatch
 +    def allowed?(user)
 +      return false if user.present? && OpenProject::OpenIDConnect::RagfitLoginGate.oidc_linked?(user)
 +
 +      super
++    end
++  end
++end
+diff --git a/modules/openid_connect/lib/open_project/openid_connect/ragfit_revoke_ungated.rb b/modules/openid_connect/lib/open_project/openid_connect/ragfit_revoke_ungated.rb
+new file mode 100644
+index 0000000..70b66c5
+--- /dev/null
++++ b/modules/openid_connect/lib/open_project/openid_connect/ragfit_revoke_ungated.rb
+@@ -0,0 +1,85 @@
++# frozen_string_literal: true
++
++# RagFit patch 0003 (oidc-login-gate, rollout follow-up 2026-10-13): end existing access of OIDC users at the
++# rollout of the login gate. GPLv3 §10 modification, see CHANGES-RAGFIT.md.
++#
++# The gate checks the team claim at login only, and team membership is not stored. Sessions and tokens
++# issued before the gate stay valid. This task revokes them for users linked to an OpenID Connect
++# provider: browser sessions, API, RSS, iCal and autologin tokens, and OAuth access tokens. Users then have
++# to sign in again through the gate; members get in, everyone else is rejected. Local accounts without an
++# OIDC link are never touched. RAGFIT_OIDC_KEEP_LOGINS (comma-separated) skips known members.
++# Dry run by default (DRY_RUN=0 to revoke). Logs logins and counts only.
++module OpenProject::OpenIDConnect
++  class RagfitRevokeUngated
++    TOKEN_CLASSES = %w[Token::API Token::RSS Token::ICal Token::AutoLogin].freeze
++
++    Result = Struct.new(:selected, :revoked, :dry_run, keyword_init: true)
++
++    attr_reader :provider, :keep_logins, :dry_run, :log
++
++    def initialize(provider: nil, keep_logins: [], dry_run: true, log: ->(line) { Rails.logger.info(line) })
++      @provider = provider.to_s.strip.presence
++      @keep_logins = keep_logins.map { |l| l.to_s.strip.downcase }.reject(&:empty?)
++      @dry_run = dry_run
++      @log = log
++    end
++
++    def self.from_env(provider_arg, env: ENV, log: ->(line) { puts line })
++      new(provider: provider_arg,
++          keep_logins: env["RAGFIT_OIDC_KEEP_LOGINS"].to_s.split(","),
++          dry_run: env["DRY_RUN"].to_s != "0",
++          log:)
++    end
++
++    def call
++      users = selected_users.to_a
++      users.each do |user|
++        counts = counts_for(user)
++        log.call("#{dry_run ? 'would revoke' : 'revoking'}: #{user.login} (#{counts.map { |k, v| "#{k}=#{v}" }.join(' ')})")
++        revoke(user) unless dry_run
++      end
++      log.call("#{dry_run ? 'dry run' : 'done'}: #{users.size} OIDC user(s)#{dry_run ? ' (set DRY_RUN=0 to revoke)' : ''}")
++      Result.new(selected: users.map(&:login), revoked: dry_run ? [] : users.map(&:login), dry_run:)
++    end
++
++    private
++
++    def oidc_provider_ids
++      scope = ::OpenIDConnect::Provider.all
++      scope = scope.where(slug: provider) if provider
++      scope.pluck(:id)
++    end
++
++    def selected_users
++      linked = UserAuthProviderLink.where(auth_provider_id: oidc_provider_ids).select(:principal_id)
++      scope = User.not_builtin.where(id: linked)
++      scope = scope.where.not("LOWER(login) IN (?)", keep_logins) if keep_logins.any?
++      scope.order(:login)
++    end
++
++    def token_scopes(user)
++      TOKEN_CLASSES.filter_map { |name| name.safe_constantize }.to_h { |klass| [klass, klass.for_user(user)] }
++    end
++
++    def oauth_scope(user)
++      return nil unless defined?(::Doorkeeper::AccessToken)
++
++      ::Doorkeeper::AccessToken.where(resource_owner_id: user.id, revoked_at: nil)
++    end
++
++    def counts_for(user)
++      counts = { "sessions" => ::Sessions::UserSession.for_user(user).count }
++      token_scopes(user).each { |klass, scope| counts[klass.name.demodulize.downcase] = scope.count }
++      counts["oauth"] = oauth_scope(user)&.count.to_i
++      counts
++    end
++
++    def revoke(user)
++      User.transaction do
++        ::Sessions::UserSession.for_user(user).delete_all
++        token_scopes(user).each_value(&:destroy_all)
++        oauth_scope(user)&.update_all(revoked_at: Time.current)
++      end
 +    end
 +  end
 +end
@@ -327,6 +477,100 @@ index 0000000..4c5d197
 +      expect(Users::PasswordLogin.allowed?(local)).to be(true)
 +      expect(User.try_to_login(local.login, "adminADMIN!1")).to eq(local)
 +    end
++  end
++end
+diff --git a/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_revoke_ungated_spec.rb b/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_revoke_ungated_spec.rb
+new file mode 100644
+index 0000000..c685be9
+--- /dev/null
++++ b/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_revoke_ungated_spec.rb
+@@ -0,0 +1,88 @@
++# frozen_string_literal: true
++
++require "spec_helper"
++
++RSpec.describe OpenProject::OpenIDConnect::RagfitRevokeUngated do
++  let(:oidc_provider) { create(:oidc_provider, slug: "source") }
++  let!(:linked) { create(:user, login: "linked-user") }
++  let!(:member) { create(:user, login: "member-user") }
++  let!(:local) { create(:admin, login: "breakglass") }
++  let(:lines) { [] }
++  let(:log) { ->(line) { lines << line } }
++
++  before do
++    [linked, member].each_with_index do |user, i|
++      UserAuthProviderLink.create!(principal: user, auth_provider: oidc_provider, external_id: "ext-#{i}")
++    end
++    [linked, member, local].each do |user|
++      create(:user_session, user:)
++      create(:api_token, user:)
++      create(:rss_token, user:)
++    end
++  end
++
++  def access(user)
++    [Sessions::UserSession.for_user(user).count, Token::API.for_user(user).count, Token::RSS.for_user(user).count]
++  end
++
++  it "is a dry run by default" do
++    result = described_class.new(log:).call
++    expect(result.selected).to eq(%w[linked-user member-user])
++    expect(result.revoked).to be_empty
++    expect(access(linked)).to eq([1, 1, 1])
++    expect(lines.join("\n")).to include("would revoke: linked-user").and include("DRY_RUN=0")
++  end
++
++  it "revokes sessions and tokens of OIDC-linked users only" do
++    result = described_class.new(dry_run: false, log:).call
++    expect(result.revoked).to eq(%w[linked-user member-user])
++    expect(access(linked)).to eq([0, 0, 0])
++    expect(access(member)).to eq([0, 0, 0])
++    expect(access(local)).to eq([1, 1, 1])
++    expect(User.find(linked.id)).to be_active
++  end
++
++  it "skips RAGFIT_OIDC_KEEP_LOGINS and other providers" do
++    cleanup = described_class.from_env("source", env: { "DRY_RUN" => "0", "RAGFIT_OIDC_KEEP_LOGINS" => " Member-User " },
++                                                 log:)
++    expect(cleanup.call.revoked).to eq(%w[linked-user])
++    expect(access(member)).to eq([1, 1, 1])
++    expect(described_class.new(provider: "other", log:).call.selected).to be_empty
++  end
++end
++
++RSpec.describe OpenProject::OpenIDConnect::RagfitLoginGate, "logging of a rejected login" do
++  let(:io) { StringIO.new }
++  let(:logger) { ActiveSupport::Logger.new(io).tap { |l| l.level = Logger::DEBUG } }
++  let(:strategy) { double(name: "source") }
++  let(:auth_hash) do
++    OmniAuth::AuthHash.new(
++      "provider" => "source", "uid" => "subject-123",
++      "info" => { "name" => "Out Sider", "email" => "outsider-mail-marker" },
++      "extra" => { "raw_info" => { "preferred_username" => "outsider", "groups" => %w[OtherOrg:team],
++                                   "email" => "outsider-mail-marker" } }
++    )
++  end
++
++  before do
++    stub_const("ENV", ENV.to_h.merge("RAGFIT_OIDC_SOURCE_LOGIN_GROUPS" => "ErynoaGroup:plan-user"))
++    allow(Rails).to receive(:logger).and_return(logger)
++  end
++
++  it "logs provider and login only and returns the rejection" do
++    result = Authentication::OmniauthService.new(strategy:, auth_hash:, controller: double).call
++    expect(result).to be_failure
++    expect(result.message).to eq(I18n.t("user.authorization_rejected"))
++    expect(io.string).to include("rejected for 'outsider'")
++    expect(io.string).not_to include("outsider-mail-marker")
++    expect(io.string).not_to include("Returning from omniauth")
++    expect(io.string).not_to include("subject-123")
++  end
++
++  it "keeps upstream handling for approved logins" do
++    allowed = auth_hash.deep_dup
++    allowed["extra"]["raw_info"]["groups"] = %w[ErynoaGroup:plan-user]
++    expect(described_class.rejects?(allowed)).to be(false)
++    expect(described_class.rejects?(auth_hash)).to be(true)
 +  end
 +end
 -- 
