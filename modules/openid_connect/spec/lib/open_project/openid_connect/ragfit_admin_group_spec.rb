@@ -48,21 +48,43 @@ RSpec.describe OpenProject::OpenIDConnect::RagfitAdminGroup do
   end
 
   describe "strategy patch" do
-    it "is prepended to the OpenID Connect strategy" do
-      expect(OmniAuth::Strategies::OpenIDConnect.ancestors).to include(described_class::StrategyPatch)
+    # Production path: OpenProject extends every strategy instance with OmniAuth::FlexibleStrategy.
+    def strategy_for(klass = OmniAuth::Strategies::OpenIDConnect, **opts)
+      klass.new(nil, name: "source", **opts).tap { |s| s.extend(OmniAuth::FlexibleStrategy) }
     end
 
-    it "adds admin to the user attributes, also false" do
-      strategy = OmniAuth::Strategies::OpenIDConnect.new(nil, name: "source")
-      hash = OmniAuth::AuthHash.new(extra: { raw_info: { "groups" => %w[acme:dev] } })
-      stub_const("ENV", ENV.to_h.merge(env))
-      expect(strategy.omniauth_hash_to_user_attributes(hash)).to include(admin: false)
+    def auth_hash(raw_info)
+      OmniAuth::AuthHash.new(extra: { raw_info: })
+    end
+
+    before { stub_const("ENV", ENV.to_h.merge(env)) }
+
+    it "is prepended to OmniAuth::FlexibleStrategy" do
+      expect(OmniAuth::FlexibleStrategy.ancestors.first).to eq(described_class::StrategyPatch)
+    end
+
+    it "adds admin to the user attributes of an extended OIDC strategy, also false" do
+      expect(strategy_for.omniauth_hash_to_user_attributes(auth_hash("groups" => %w[acme:dev]))).to include(admin: false)
+      expect(strategy_for.omniauth_hash_to_user_attributes(auth_hash("groups" => %w[acme:platform-admin])))
+        .to include(admin: true)
+    end
+
+    it "keeps the upstream attribute map result" do
+      map = ->(_auth) { { login: "jdoe" } }
+      result = strategy_for(openproject_attribute_map: map)
+                 .omniauth_hash_to_user_attributes(auth_hash("groups" => %w[acme:platform-admin]))
+      expect(result).to include(login: "jdoe", admin: true)
     end
 
     it "adds nothing without a groups claim" do
-      strategy = OmniAuth::Strategies::OpenIDConnect.new(nil, name: "source")
-      stub_const("ENV", ENV.to_h.merge(env))
-      expect(strategy.omniauth_hash_to_user_attributes(OmniAuth::AuthHash.new(extra: { raw_info: {} }))).not_to have_key(:admin)
+      expect(strategy_for.omniauth_hash_to_user_attributes(auth_hash({}))).not_to have_key(:admin)
+    end
+
+    it "does not touch strategies other than OpenID Connect" do
+      other = stub_const("RagfitDummyStrategy", Class.new { include OmniAuth::Strategy })
+      strategy = other.new(nil, name: "source").tap { |s| s.extend(OmniAuth::FlexibleStrategy) }
+      expect(strategy.omniauth_hash_to_user_attributes(auth_hash("groups" => %w[acme:platform-admin])))
+        .not_to have_key(:admin)
     end
   end
 end

@@ -123,9 +123,10 @@ module OpenProject::OpenIDConnect
       OpenIDConnect::Provider
 
       # RagFit patch 0002 (oidc-admin-group): admin flag from a group claim, see CHANGES-RAGFIT.md
-      strategy = OmniAuth::Strategies::OpenIDConnect
+      # Prepended to FlexibleStrategy, which every strategy instance is extended with at runtime.
+      flexible = ::OmniAuth::FlexibleStrategy
       patch = ::OpenProject::OpenIDConnect::RagfitAdminGroup::StrategyPatch
-      strategy.prepend(patch) unless strategy.ancestors.include?(patch)
+      flexible.prepend(patch) unless flexible.ancestors.include?(patch)
     end
   end
 end

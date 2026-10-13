@@ -32,9 +32,14 @@ module OpenProject::OpenIDConnect::RagfitAdminGroup
     groups.any? { |g| g.is_a?(String) && g.strip.casecmp?(group) }
   end
 
+  # Prepended to OmniAuth::FlexibleStrategy (engine.rb). OpenProject extends every strategy instance with
+  # FlexibleStrategy at runtime, and its omniauth_hash_to_user_attributes would shadow a patch on the
+  # strategy class. Only OpenID Connect strategies are touched; all others get the upstream result.
   module StrategyPatch
     def omniauth_hash_to_user_attributes(auth_hash)
       attributes = defined?(super) ? super : {}
+      return attributes unless is_a?(::OmniAuth::Strategies::OpenIDConnect)
+
       raw_info = auth_hash.dig("extra", "raw_info") || {}
       admin = OpenProject::OpenIDConnect::RagfitAdminGroup.admin_for(name, raw_info)
       admin.nil? ? attributes : attributes.merge(admin:)
