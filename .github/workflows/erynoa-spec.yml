@@ -1,0 +1,68 @@
+name: RagFit spec (oidc-admin-group)
+
+# RagFit fork: runs only the RagFit OIDC admin-group spec on a free GitHub-hosted runner.
+# Allowed automatic trigger: pull_request limited to the paths below (see ragfit/ci/trigger-check.sh).
+on:
+  pull_request:
+    paths:
+      - "modules/openid_connect/**"
+      - "ragfit/**"
+      - ".github/workflows/erynoa-spec.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: erynoa-spec-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spec:
+    name: rspec ragfit_admin_group_spec
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/openproject_test
+      BUNDLE_WITHOUT: development
+      SILENCE_SQL_LOGS: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libpq-dev
+
+      - name: Setup Ruby (.ruby-version)
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          bundler-cache: true
+
+      - name: Configure database
+        run: |
+          cat > config/database.yml <<'YAML'
+          test:
+            url: <%= ENV["DATABASE_URL"] %>
+          YAML
+
+      - name: Create and migrate test database
+        run: bundle exec rails db:create db:migrate
+
+      - name: rspec
+        run: bundle exec rspec modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb

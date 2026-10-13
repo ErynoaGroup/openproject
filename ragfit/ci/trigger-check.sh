@@ -3,6 +3,7 @@
 # Allowed automatic triggers (exhaustive):
 #   erynoa-build.yml:          push with tags only (ragfit-plan-v*), no branches/paths
 #   erynoa-upstream-sync.yml:  schedule
+#   erynoa-spec.yml:           pull_request with paths only (RagFit spec, GitHub-hosted, read-only token)
 # Manual triggers (workflow_dispatch, workflow_call) are always allowed.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -17,6 +18,7 @@ MANUAL = {"workflow_dispatch", "workflow_call"}
 ALLOWED = {
     "erynoa-upstream-sync.yml": {"schedule"},
     "erynoa-build.yml": {"push"},
+    "erynoa-spec.yml": {"pull_request"},
 }
 # Free GitHub-hosted runner labels (standard, not "larger runners")
 HOSTED = re.compile(r"^(ubuntu-(latest|slim|2[0-9]\.04(-arm)?)|windows-(latest|20[0-9]{2})|macos-(latest|1[0-9]))$")
@@ -40,6 +42,12 @@ for path in sorted(glob.glob(".github/workflows/*.y*ml")):
             cfg = cfg or {}
             if set(cfg) - {"tags"} or cfg.get("tags") != ["ragfit-plan-v*"]:
                 errors.append(f"{name}: push trigger must be tags ['ragfit-plan-v*'] only, got {cfg}")
+        elif name == "erynoa-spec.yml":
+            cfg = cfg or {}
+            if set(cfg) != {"paths"} or not cfg.get("paths"):
+                errors.append(f"{name}: pull_request trigger must have paths only, got {cfg}")
+            if (doc.get("permissions") or {}) != {"contents": "read"}:
+                errors.append(f"{name}: permissions must be exactly contents: read")
     for job_id, job in (doc.get("jobs") or {}).items():
         ro = job.get("runs-on") if isinstance(job, dict) else None
         if ro is None:

@@ -88,3 +88,9 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 
 **Why:** RagFit | Source sends groups as `org` and `org:team` entries but no boolean admin claim; upstream can only map admin from a boolean claim. Patch file: `ragfit/patches/0002-oidc-admin-group.patch`.
 
+## 2026-10-13 — CI: RagFit spec workflow
+
+**What:** New `.github/workflows/erynoa-spec.yml` runs `modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb` on `ubuntu-latest` (Postgres service, Ruby from `.ruby-version`, cached bundle, `db:create db:migrate`, no frontend build). Triggers: `pull_request` limited to `modules/openid_connect/**`, `ragfit/**` and the workflow itself, plus `workflow_dispatch`; `permissions: contents: read`; concurrency per ref. `ragfit/ci/trigger-check.sh` allows exactly this trigger (paths only, read-only permissions).
+
+**Why:** The RagFit patches get a real spec run before merge; free GitHub-hosted runner, no publish rights.
+
