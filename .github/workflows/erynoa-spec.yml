@@ -69,3 +69,4 @@ jobs:
           bundle exec rspec
           modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_admin_group_spec.rb
           modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_login_gate_spec.rb
+          modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_revoke_ungated_spec.rb

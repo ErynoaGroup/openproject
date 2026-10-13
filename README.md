@@ -79,7 +79,43 @@ with the usual "not allowed to sign in" message.
   as an error at boot.
 - Users linked to an OpenID Connect provider cannot sign in with a password (web login or basic auth).
   Local accounts without such a link, e.g. a break-glass admin, keep password login.
+- A refused login is logged with provider and login only. For this case the upstream error log of the
+  full OmniAuth response (claims, e-mail, groups) and the subject id is not written.
+- Only OpenID Connect providers are gated. SAML or other OmniAuth providers are approved unchanged: this
+  deployment signs in through OpenID Connect only, those providers carry no team claim, and gating them
+  needs a provider-specific mapping. Do not enable another provider without its own authorization.
+- Relation to the upstream `password_login` setting (`all`, `except_sso`, `none`, with
+  `password_login_bypass_logins`): `except_sso` only blocks users whose account is managed by an
+  external auth source and leaves the decision to an instance setting. The gate adds an unconditional
+  check in front of it (prepended to `Users::PasswordLogin.allowed?`): an OIDC link always refuses
+  password login, also when the setting is `all` and also for logins on the bypass list. For users
+  without an OIDC link the upstream setting applies unchanged, so a break-glass account stays possible
+  through `all` or the bypass list.
 - Patch: [ragfit/patches/0003-oidc-login-gate.patch](ragfit/patches/0003-oidc-login-gate.patch).
+
+#### Rollout notes
+
+The team claim is checked at login only, and team membership is not stored. Sessions and tokens issued
+before the gate keep working until they expire. Right after rolling out an image with the gate, revoke
+them for OIDC users, so everyone has to sign in through the gate again:
+
+```sh
+RAILS_ENV=production bundle exec rake 'ragfit:oidc:revoke_ungated[source]'            # dry run
+RAILS_ENV=production DRY_RUN=0 bundle exec rake 'ragfit:oidc:revoke_ungated[source]'  # revoke
+```
+
+- Only users with a link to an OpenID Connect provider (optional provider slug); local accounts are
+  never touched. Accounts stay active: members sign in again, everyone else is refused by the gate.
+- Revokes browser sessions, API, RSS, iCal and autologin tokens and OAuth access tokens. Members have to
+  create new API tokens.
+- `RAGFIT_OIDC_KEEP_LOGINS=a,b` skips logins known to be in an allowed team. Entries without a matching
+  user are reported as a warning.
+- API-token integrations (CI jobs, bots, sync scripts) that run as an OIDC-linked user stop working when
+  their token is revoked. List those users in `RAGFIT_OIDC_KEEP_LOGINS` before running with `DRY_RUN=0`,
+  or plan to issue new tokens.
+- An unknown provider slug, or an error while revoking, stops the run with exit code 1. Each user is
+  revoked in one transaction; running the task again is safe.
+- Dry run by default; output contains logins and counts only.
 
 The patches are re-checked against every upstream release before they are merged.
 
