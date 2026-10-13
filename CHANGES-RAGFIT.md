@@ -124,3 +124,9 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 **What:** New rake task `ragfit:e2e:delete_users[PREFIX]` (`lib/tasks/ragfit_e2e.rake`) and service `app/services/ragfit/e2e_user_cleanup.rb`. Deletes users whose login starts with a strict E2E prefix (`e2e-` or longer, `[a-z0-9-]` only), optionally limited by `RAGFIT_E2E_LOGINS`. Refuses the whole run if a selected user is an admin or on the password-login bypass list, or a listed login is outside the prefix. Dry run unless `DRY_RUN=0`; logs logins only. Deletion marks the user deleted and runs upstream `Principals::DeleteJob` synchronously. A failed deletion (exception or silent rollback) restores the previous status and stops with exit code 1; users left marked deleted are finished on a rerun. New spec `spec/services/ragfit/e2e_user_cleanup_spec.rb`, run by `erynoa-spec.yml` (paths extended to the new files). README documents a memory-limited run and API token access for E2E service accounts.
 
 **Why:** E2E runs leave test users behind; deleting them through the web UI or the API is not suitable for automation. Patch file: `ragfit/patches/0004-e2e-user-cleanup.patch`.
+
+## 2026-10-13 — 0003 oidc-login-gate: spec for bare org and team names
+
+**What:** `ragfit_login_gate_spec.rb` checks that only the full team claim `ErynoaGroup:plan-user` authorizes: bare `ErynoaGroup`, bare `plan-user`, both together, `:plan-user`, `ErynoaGroup:`, another org, extra segments, trailing whitespace and a prefix of the team name are refused; a bare team name as `LOGIN_GROUPS` value refuses every login. Patch file regenerated. No code change.
+
+**Why:** Rollout requirement: an org or team name alone must never open the login.

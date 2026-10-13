@@ -1,4 +1,4 @@
-From 70d2edd7190928332debb9370f6d826cd50ddc43 Mon Sep 17 00:00:00 2001
+From 21594708f03d9febf94fea82b6d6eb5a4c280190 Mon Sep 17 00:00:00 2001
 From: Niklas Klein <niklas.klein@erynoa.com>
 Date: Tue, 13 Oct 2026 13:30:00 +0000
 Subject: [PATCH] ragfit: OIDC login only for listed teams (0003
@@ -10,9 +10,9 @@ Subject: [PATCH] ragfit: OIDC login only for listed teams (0003
  .../lib/open_project/openid_connect/engine.rb |   6 +
  .../openid_connect/ragfit_login_gate.rb       | 159 ++++++++++++++++++
  .../openid_connect/ragfit_revoke_ungated.rb   | 112 ++++++++++++
- .../openid_connect/ragfit_login_gate_spec.rb  | 132 +++++++++++++++
+ .../openid_connect/ragfit_login_gate_spec.rb  | 149 ++++++++++++++++
  .../ragfit_revoke_ungated_spec.rb             | 119 +++++++++++++
- 7 files changed, 564 insertions(+)
+ 7 files changed, 581 insertions(+)
  create mode 100644 lib/tasks/ragfit_oidc.rake
  create mode 100644 modules/openid_connect/lib/open_project/openid_connect/ragfit_login_gate.rb
  create mode 100644 modules/openid_connect/lib/open_project/openid_connect/ragfit_revoke_ungated.rb
@@ -371,10 +371,10 @@ index 0000000..3b8e3fe
 +end
 diff --git a/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_login_gate_spec.rb b/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_login_gate_spec.rb
 new file mode 100644
-index 0000000..4c5d197
+index 0000000..58ba908
 --- /dev/null
 +++ b/modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_login_gate_spec.rb
-@@ -0,0 +1,132 @@
+@@ -0,0 +1,149 @@
 +# frozen_string_literal: true
 +
 +require "spec_helper"
@@ -445,6 +445,23 @@ index 0000000..4c5d197
 +    expect(decide(gate_hash("groups" => %w[ErynoaGroup]), env: gate)).to be_reject
 +    expect(decide(gate_hash("groups" => %w[ErynoaGroup:plan-user]), env: gate)).to be_approve
 +    expect(Rails.logger).to have_received(:warn).with(/LOGIN_GROUPS entry ignored/).at_least(4).times
++  end
++
++  it "authorizes only the full team claim, never a bare org or team name" do
++    gate = { "RAGFIT_OIDC_SOURCE_LOGIN_GROUPS" => "ErynoaGroup:plan-user" }
++    [
++      %w[ErynoaGroup], %w[plan-user], %w[ErynoaGroup plan-user], %w[:plan-user], %w[ErynoaGroup:],
++      %w[OtherOrg:plan-user], %w[ErynoaGroup:plan-user:x], ["ErynoaGroup:plan-user "], %w[ErynoaGroup:plan]
++    ].each do |groups|
++      expect(decide(gate_hash("groups" => groups), env: gate)).to be_reject, "groups #{groups.inspect} must be refused"
++    end
++    expect(decide(gate_hash("groups" => %w[ErynoaGroup ErynoaGroup:plan-user]), env: gate)).to be_approve
++    expect(decide(gate_hash("groups" => %w[erynoagroup:PLAN-USER]), env: gate)).to be_approve
++  end
++
++  it "never accepts a bare team name as LOGIN_GROUPS value" do
++    expect(decide(gate_hash("groups" => %w[plan-user]), env: { "RAGFIT_OIDC_SOURCE_LOGIN_GROUPS" => "plan-user" }))
++      .to be_reject
 +  end
 +
 +  it "rejects every login when only invalid entries are set" do
