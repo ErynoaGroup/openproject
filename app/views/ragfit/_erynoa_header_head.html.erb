@@ -1,0 +1,5 @@
+<%# RagFit patch 0005 (erynoa-header): stylesheets of the vendored package and the OpenProject layout offsets. %>
+<% if OpenProject::Ragfit::ErynoaHeader.show?(params) && OpenProject::Ragfit::ErynoaHeader.domain %>
+<link rel="stylesheet" href="<%= OpenProject::Ragfit::ErynoaHeader::ASSET_PATH %>/erynoa-header.v1.css">
+<link rel="stylesheet" href="/erynoa/ragfit-plan-layout.css">
+<% end %>

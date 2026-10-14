@@ -1,0 +1,81 @@
+/* SPDX-License-Identifier: MIT
+ * Copyright (c) 2026 Erynoa — Erynoa header v1.1.1 (code only; logo/name: see NOTICE.md) */
+:root {
+  --erh-height: 48px;           /* desktop */
+  --erh-height-mobile: 56px;    /* < 640px */
+  --erh-z: 1000;                /* default; each app picks its own value (README) */
+  --erh-position: sticky;       /* apps without body scroll (OpenProject): relative */
+  --erh-font: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --erh-logo-height: 22px;
+  --erh-logo-url: url("erynoa-en-lockup.svg");
+  --erh-bg: #ffffff;
+  --erh-fg: #0a0a0a;            /* erynoaInk, 19.8:1 on bg */
+  --erh-muted: #46463f;         /* erynoaText, 9.6:1 on bg */
+  --erh-border: #e4e4df;        /* erynoaHairline */
+  --erh-active-bg: #ecece9;     /* erynoaSurface */
+  --erh-focus: #1a56db;         /* 6.3:1 on bg */
+}
+/* Theme: OS preference unless the app forces one via data-erh-theme on <html> or the header. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-erh-theme="light"]) {
+  --erh-bg: #111111;
+  --erh-fg: #f5f5f3;            /* erynoaPaper, 17.4:1 */
+  --erh-muted: #bdbdb8;         /* 10.4:1 */
+  --erh-border: #2b2b2b;
+  --erh-active-bg: #222222;
+  --erh-focus: #8ab4ff;         /* 8.6:1 */
+  }
+}
+:root[data-erh-theme="dark"], .erh[data-erh-theme="dark"] {
+  --erh-bg: #111111;
+  --erh-fg: #f5f5f3;            /* erynoaPaper, 17.4:1 */
+  --erh-muted: #bdbdb8;         /* 10.4:1 */
+  --erh-border: #2b2b2b;
+  --erh-active-bg: #222222;
+  --erh-focus: #8ab4ff;         /* 8.6:1 */
+}
+:root[data-erh-theme="light"], .erh[data-erh-theme="light"] {
+  --erh-bg: #ffffff;
+  --erh-fg: #0a0a0a;            /* erynoaInk, 19.8:1 on bg */
+  --erh-muted: #46463f;         /* erynoaText, 9.6:1 on bg */
+  --erh-border: #e4e4df;        /* erynoaHairline */
+  --erh-active-bg: #ecece9;     /* erynoaSurface */
+  --erh-focus: #1a56db;         /* 6.3:1 on bg */
+}
+.erh {
+  position: var(--erh-position); top: 0; z-index: var(--erh-z);
+  box-sizing: border-box; height: var(--erh-height);
+  display: flex; align-items: center; gap: 16px; padding: 0 16px;
+  background: var(--erh-bg); color: var(--erh-fg);
+  border-bottom: 1px solid var(--erh-border);
+  font: 500 14px/1 var(--erh-font);
+}
+.erh *, .erh *::before, .erh *::after { box-sizing: border-box; }
+.erh-skip {
+  position: absolute; left: 8px; top: -100px; padding: 8px 12px;
+  background: var(--erh-fg); color: var(--erh-bg); border-radius: 4px; z-index: calc(var(--erh-z) + 1);
+}
+.erh-skip:focus { top: 8px; }
+.erh-brand { display: inline-flex; align-items: center; height: 100%; color: inherit; flex: none; }
+.erh-logo {
+  display: block; height: var(--erh-logo-height); aspect-ratio: 1150 / 347;
+  background-color: currentColor;
+  -webkit-mask: var(--erh-logo-url) center / contain no-repeat;
+          mask: var(--erh-logo-url) center / contain no-repeat;
+}
+.erh-nav { height: 100%; overflow-x: auto; scrollbar-width: none; }
+.erh-nav ul { display: flex; height: 100%; margin: 0; padding: 0; list-style: none; gap: 4px; align-items: center; }
+.erh-nav a {
+  display: inline-flex; align-items: center; height: 32px; padding: 0 10px; border-radius: 6px;
+  color: var(--erh-muted); text-decoration: none; white-space: nowrap;
+}
+.erh-nav a:hover { color: var(--erh-fg); background: var(--erh-active-bg); }
+.erh-nav a[aria-current="page"] { color: var(--erh-fg); background: var(--erh-active-bg); font-weight: 600; }
+.erh a:focus-visible { outline: 2px solid var(--erh-focus); outline-offset: 2px; }
+.erh-slot-end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+@media (max-width: 639px) {
+  .erh { height: var(--erh-height-mobile); gap: 8px; padding: 0 12px; }
+  .erh-nav a { height: 40px; padding: 0 8px; } /* >= 40px touch target */
+}
+@media (prefers-reduced-motion: no-preference) { .erh-nav a { transition: background-color .12s, color .12s; } }
+@media print { .erh { display: none; } }

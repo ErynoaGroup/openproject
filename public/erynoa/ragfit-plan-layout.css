@@ -1,0 +1,30 @@
+/* RagFit patch 0005 (erynoa-header): fit the Erynoa header above the OpenProject 17 layout.
+ * SPDX-License-Identifier: GPL-3.0-only — part of RagFit | Plan (see CHANGES-RAGFIT.md).
+ * OpenProject's body does not scroll; #content-wrapper and the menu sidebar take 100dvh minus the app header.
+ * The header bar sits in normal flow above #wrapper, so those heights also subtract its height.
+ * Breakpoints: the bar switches to --erh-height-mobile below 640px (package), OpenProject fixes its own header
+ * below 544px ($breakpoint-sm). z-index stays below OpenProject toasts (300). */
+:root {
+  --erh-position: relative;
+  --erh-z: 200;
+  --ragfit-erh-h: var(--erh-height);
+}
+@media (max-width: 639px) {
+  :root { --ragfit-erh-h: var(--erh-height-mobile); }
+}
+#content-wrapper,
+#main-menu #menu-sidebar {
+  height: calc(100dvh - var(--header-height) - var(--ragfit-erh-h));
+}
+@media screen and (max-width: 543px) {
+  .op-app-header { top: var(--ragfit-erh-h); }
+  /* the bar stays in normal flow above #wrapper, so OpenProject's own #main offset is still correct */
+  ._header-scrolled #main,
+  ._header-scrolled #content-wrapper,
+  ._header-scrolled #main-menu #menu-sidebar {
+    height: calc(100dvh - var(--ragfit-erh-h));
+  }
+}
+@media print {
+  #content-wrapper, #main-menu #menu-sidebar { height: auto; }
+}

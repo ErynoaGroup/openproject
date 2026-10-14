@@ -42,6 +42,8 @@ See COPYRIGHT and LICENSE files for more details.
 <%= content_tag :body,
                 class: "#{body_css_classes}  __overflowing_element_container __overflowing_body",
                 data: body_data_attributes(local_assigns) do %>
+<%# RagFit patch 0005 (erynoa-header): hook for content before the app header (Erynoa header). %>
+<%= call_hook :view_layouts_base_body_top %>
 <%= render partial: "warning_bar/warning_bar" %>
 <noscript>
   <div class="top-shelf">
