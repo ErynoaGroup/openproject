@@ -38,8 +38,13 @@ Runners: free GitHub-hosted runners only. `test-core.yml` upstream uses a third-
 `runs-on/cache` is replaced by `actions/cache` (same inputs); the originals are kept with the same marker. The job is still gated to the upstream
 organisation by its `if:` condition and its triggers are disabled, so it does not run in this fork unless adapted.
 
-Leak guard in CI: the guard job scans only our own files (shallow checkout, no upstream tags); diff and commit-message
-scans run with `just ci-quick` in a clone with tags. CI fails if the repository secret `RAGFIT_LEAK_EXTRA` is empty.
+Leak guard in CI: the guard job (erynoa-build.yml) and the `leak-guard` job of erynoa-spec.yml run
+`ragfit/ci/leak-base-fetch.sh` first: it fetches the upstream tag of `lib/open_project/version.rb` and deepens the
+shallow checkout to the merge base, so the diff and commit-message scans (and the commit allowlist) really run;
+`RAGFIT_LEAK_REQUIRE_BASE=true` fails the job if they cannot. The guard job fails if the repository secret
+`RAGFIT_LEAK_EXTRA` is empty; erynoa-spec.yml uses no secrets and scans without the internal names.
+Added lines of code files (Ruby, ERB, JS/TS) are scanned without the mention check (instance variables);
+in stylesheets CSS at-rules such as `@media` are not mentions, everything else after an at sign still is.
 
 Notes:
 - Re-enabling push-to-`main` in `erynoa-build.yml` also needs the `meta` job to accept non-tag refs (it currently rejects anything that is not `ragfit-plan-vX.Y.Z`).
