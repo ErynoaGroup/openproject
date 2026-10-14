@@ -7,6 +7,7 @@ on:
     paths:
       - "modules/openid_connect/**"
       - "ragfit/**"
+      - "docker/prod/Dockerfile"
       - "app/services/ragfit/**"
       - "lib/tasks/ragfit_e2e.rake"
       - "spec/services/ragfit/**"
@@ -21,6 +22,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  precompress:
+    name: precompress assets script
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install brotli
+        run: sudo apt-get update && sudo apt-get install -y brotli
+      - name: shellcheck
+        run: shellcheck ragfit/build/precompress-assets.sh ragfit/ci/precompress-test.sh
+      - name: precompress-test
+        run: ragfit/ci/precompress-test.sh
+
   spec:
     name: rspec ragfit specs
     runs-on: ubuntu-24.04  # pinned; ubuntu-latest moves to 26.04
