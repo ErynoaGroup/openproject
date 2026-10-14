@@ -130,3 +130,12 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 **What:** `ragfit_login_gate_spec.rb` checks that only the full team claim `ErynoaGroup:plan-user` authorizes: bare `ErynoaGroup`, bare `plan-user`, both together, `:plan-user`, `ErynoaGroup:`, another org, extra segments, trailing whitespace and a prefix of the team name are refused; a bare team name as `LOGIN_GROUPS` value refuses every login. Patch file regenerated. No code change.
 
 **Why:** Rollout requirement: an org or team name alone must never open the login.
+
+## 2026-10-14 — Build: precompressed assets
+
+**What:**
+- New `ragfit/build/precompress-assets.sh`: writes `<file>.br` (brotli quality 11) and `<file>.gz` (gzip -9, no name or timestamp) next to every compressible asset of at least 256 bytes; a variant is kept only if smaller, and it gets the mtime of its source.
+- `docker/prod/Dockerfile`, stage `app-build-slim`: installs `brotli` in that build stage only and runs the script on `public/assets`. The runtime stages get no new packages.
+- New `ragfit/ci/precompress-test.sh` (fixture: byte-identical decompression, mtime, skipped small, binary and incompressible files, idempotent second run) and job `precompress` in `erynoa-spec.yml` (shellcheck plus the test); the workflow paths include `docker/prod/Dockerfile`.
+
+**Why:** The main frontend bundle is 7.2 MB. Compressing it per request in the proxy took about 4 s; precompressed variants let the server send it without per-request compression (Rails `ActionDispatch::Static` serves `.br`/`.gz` when the client accepts them). The proxy switch is a separate deployment change after a release.
