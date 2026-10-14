@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT
- * Copyright (c) 2026 Erynoa — Erynoa header v1.1.1 (code only; logo/name: see NOTICE.md) */
+ * Copyright (c) 2026 Erynoa — Erynoa header v1.1.2 (code only; logo/name: see NOTICE.md) */
 :root {
   --erh-height: 48px;           /* desktop */
   --erh-height-mobile: 56px;    /* < 640px */
@@ -63,7 +63,8 @@
   -webkit-mask: var(--erh-logo-url) center / contain no-repeat;
           mask: var(--erh-logo-url) center / contain no-repeat;
 }
-.erh-nav { height: 100%; overflow-x: auto; scrollbar-width: none; }
+.erh-nav { height: 100%; min-width: 0; flex: 1 1 auto; overflow-x: auto; scrollbar-width: none; scroll-padding-inline: 8px; }
+.erh-nav::-webkit-scrollbar { display: none; }
 .erh-nav ul { display: flex; height: 100%; margin: 0; padding: 0; list-style: none; gap: 4px; align-items: center; }
 .erh-nav a {
   display: inline-flex; align-items: center; height: 32px; padding: 0 10px; border-radius: 6px;
@@ -76,6 +77,14 @@
 @media (max-width: 639px) {
   .erh { height: var(--erh-height-mobile); gap: 8px; padding: 0 12px; }
   .erh-nav a { height: 40px; padding: 0 8px; } /* >= 40px touch target */
+}
+/* Narrow phones (375/360px): tighter spacing so all entries fit; at 320px the nav scrolls
+   horizontally and every link stays reachable via Tab (focus scrolls it into view). */
+@media (max-width: 399px) {
+  .erh { gap: 4px; padding: 0 8px; }
+  .erh-nav ul { gap: 0; }
+  .erh-nav a { padding: 0 5px; font-size: 13px; }
+  :root { --erh-logo-height: 16px; }
 }
 @media (prefers-reduced-motion: no-preference) { .erh-nav a { transition: background-color .12s, color .12s; } }
 @media print { .erh { display: none; } }

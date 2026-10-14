@@ -1,19 +1,19 @@
-From a9fdfed05ee113e8e81613583348d6094671f945 Mon Sep 17 00:00:00 2001
+From 3f195a38b957ce6130e307a3b76b90a8621fd2b5 Mon Sep 17 00:00:00 2001
 From: Niklas Klein <niklas.klein@erynoa.com>
 Date: Wed, 14 Oct 2026 12:00:00 +0200
 Subject: [PATCH] RagFit 0005: erynoa-header
 
 ---
- CHANGES-RAGFIT.md                             | 14 ++++
+ CHANGES-RAGFIT.md                             | 25 +++++++
  app/views/layouts/base.html.erb               |  2 +
  app/views/ragfit/_erynoa_header.html.erb      | 19 +++++
  app/views/ragfit/_erynoa_header_head.html.erb |  5 ++
  config/initializers/ragfit_erynoa_header.rb   |  6 ++
  lib/open_project/ragfit/erynoa_header.rb      | 70 +++++++++++++++++++
- public/erynoa/ragfit-plan-layout.css          | 36 ++++++++++
+ public/erynoa/ragfit-plan-layout.css          | 30 ++++++++
  .../open_project/ragfit/erynoa_header_spec.rb | 46 ++++++++++++
  spec/requests/ragfit/erynoa_header_spec.rb    | 57 +++++++++++++++
- 9 files changed, 255 insertions(+)
+ 9 files changed, 260 insertions(+)
  create mode 100644 app/views/ragfit/_erynoa_header.html.erb
  create mode 100644 app/views/ragfit/_erynoa_header_head.html.erb
  create mode 100644 config/initializers/ragfit_erynoa_header.rb
@@ -23,14 +23,13 @@ Subject: [PATCH] RagFit 0005: erynoa-header
  create mode 100644 spec/requests/ragfit/erynoa_header_spec.rb
 
 diff --git a/CHANGES-RAGFIT.md b/CHANGES-RAGFIT.md
-index 6decbc6..c80120e 100644
+index b6fe142..edde0f4 100644
 --- a/CHANGES-RAGFIT.md
 +++ b/CHANGES-RAGFIT.md
-@@ -139,3 +139,17 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
- - New `ragfit/ci/precompress-test.sh` (fixture: byte-identical decompression, mtime, skipped small, binary and incompressible files, idempotent second run) and job `precompress` in `erynoa-spec.yml` (shellcheck plus the test); the workflow paths include `docker/prod/Dockerfile`.
+@@ -140,6 +140,20 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
  
  **Why:** The main frontend bundle is 7.2 MB. Compressing it per request in the proxy took about 4 s; precompressed variants let the server send it without per-request compression (Rails `ActionDispatch::Static` serves `.br`/`.gz` when the client accepts them). The proxy switch is a separate deployment change after a release.
-+
+ 
 +## 2026-10-14 — 0005 erynoa-header
 +
 +**What:** The shared Erynoa header bar is rendered above the OpenProject UI.
@@ -44,6 +43,25 @@ index 6decbc6..c80120e 100644
 +**License:** The header code is MIT (GPLv3-compatible). The Erynoa name and logo are not licensed by the package (`NOTICE.md`); they are shipped as a separate, unchanged file next to the GPL code and are not covered by GPL-3.0 (GPLv3 §7(e): no trademark rights granted). Forks must remove or replace them.
 +
 +**Why:** One consistent navigation bar across the RagFit services. Patch file: `ragfit/patches/0005-erynoa-header.patch`.
++
+ ## 2026-10-14 — Leak guard: diff scan in CI, CSS at-rules
+ 
+ **What:**
+@@ -151,3 +165,14 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
+ - `README-RAGFIT-CI.md` updated.
+ 
+ **Why:** With `fetch-depth: 1` the CI leak guard never ran the diff and commit-message scan, and the commit allowlist could not be checked. Once the scan ran, CSS at-rules and Ruby instance variables were reported as mentions.
++
++## 2026-10-14 — 0005 erynoa-header: package 1.1.2
++
++**What:**
++- `public/erynoa/1.1.1/` replaced by `public/erynoa/1.1.2/`: Erynoa header package 1.1.2 (tag `erynoa-header-v1.1.2` of the Erynoa assets repository, commit `fa07ded9e2ea1a29d355aa553f655936c2f3e05a`), copied unchanged including `LICENSE`, `NOTICE.md`, `PROVENANCE.md` and `SHA256SUMS`. New nav entry Monitor; the package itself now tightens the nav below 400px and lets it shrink and scroll.
++- `lib/open_project/ragfit/erynoa_header.rb` (version 1.1.2, service list), `app/views/ragfit/_erynoa_header.html.erb` (Monitor link), request spec and the `erynoa-header-sums` job in `erynoa-spec.yml` follow the new version.
++- `public/erynoa/ragfit-plan-layout.css`: the narrow-phone nav override (max-width 400px) is removed; the package covers it.
++- Screenshots in `docs/screenshots/erynoa-header/` redone (desktop light, dark, forced dark; 375, 360 and 320px).
++- Patch file `ragfit/patches/0005-erynoa-header.patch` regenerated.
++
++**Why:** Monitor is a RagFit service; the package release replaces our own spacing override.
 diff --git a/app/views/layouts/base.html.erb b/app/views/layouts/base.html.erb
 index e7cdea2..f852795 100644
 --- a/app/views/layouts/base.html.erb
@@ -59,12 +77,12 @@ index e7cdea2..f852795 100644
    <div class="top-shelf">
 diff --git a/app/views/ragfit/_erynoa_header.html.erb b/app/views/ragfit/_erynoa_header.html.erb
 new file mode 100644
-index 0000000..a42349d
+index 0000000..6772d54
 --- /dev/null
 +++ b/app/views/ragfit/_erynoa_header.html.erb
 @@ -0,0 +1,19 @@
-+<%# RagFit patch 0005 (erynoa-header): markup of erynoa-header.v1.html (Erynoa header 1.1.1, MIT; Erynoa name and
-+    logo: brand assets of Erynoa, not licensed, see public/erynoa/1.1.1/NOTICE.md). Placeholders resolved here. %>
++<%# RagFit patch 0005 (erynoa-header): markup of erynoa-header.v1.html (Erynoa header 1.1.2, MIT; Erynoa name and
++    logo: brand assets of Erynoa, not licensed, see public/erynoa/1.1.2/NOTICE.md). Placeholders resolved here. %>
 +<% erh = OpenProject::Ragfit::ErynoaHeader %>
 +<% if erh.show?(params) && (erh_domain = erh.domain) %>
 +<header class="erh" role="banner" data-erynoa-header="<%= erh::VERSION %>"<% if (erh_theme = erh.theme) %> data-erh-theme="<%= erh_theme %>"<% end %>>
@@ -74,7 +92,7 @@ index 0000000..a42349d
 +  </a>
 +  <nav class="erh-nav" aria-label="RagFit services">
 +    <ul>
-+<% { "source" => "Source", "plan" => "Plan", "memory" => "Memory", "docs" => "Docs", "auth" => "Auth" }.each do |service, label| %>
++<% { "source" => "Source", "plan" => "Plan", "memory" => "Memory", "docs" => "Docs", "auth" => "Auth", "monitor" => "Monitor" }.each do |service, label| %>
 +      <li><a data-erh-service="<%= service %>" href="<%= erh.service_url(service, erh_domain) %>"<% if service == erh::CURRENT %> aria-current="page"<% end %>><%= label %></a></li>
 +<% end %>
 +    </ul>
@@ -107,7 +125,7 @@ index 0000000..70589d4
 +end
 diff --git a/lib/open_project/ragfit/erynoa_header.rb b/lib/open_project/ragfit/erynoa_header.rb
 new file mode 100644
-index 0000000..df38d02
+index 0000000..cd9ec87
 --- /dev/null
 +++ b/lib/open_project/ragfit/erynoa_header.rb
 @@ -0,0 +1,70 @@
@@ -116,7 +134,7 @@ index 0000000..df38d02
 +# RagFit patch 0005 (erynoa-header, 2026-10-14): Erynoa header above the OpenProject layout.
 +# GPLv3 §10 modification, see CHANGES-RAGFIT.md.
 +#
-+# The vendored package public/erynoa/1.1.1/ (ErynoaGroup/.assets, tag erynoa-header-v1.1.1, MIT code; Erynoa
++# The vendored package public/erynoa/1.1.2/ (ErynoaGroup/.assets, tag erynoa-header-v1.1.2, MIT code; Erynoa
 +# name and logo not licensed, see its NOTICE.md) is served unchanged as static files. This file only renders the
 +# partial with the package's markup and resolves its placeholders at request time:
 +# - domain: RAGFIT_ERYNOA_DOMAIN, otherwise the configured host name minus its first label
@@ -128,9 +146,9 @@ index 0000000..df38d02
 +module OpenProject
 +  module Ragfit
 +    module ErynoaHeader
-+      VERSION = "1.1.1"
++      VERSION = "1.1.2"
 +      ASSET_PATH = "/erynoa/#{VERSION}".freeze
-+      SERVICES = %w[source plan memory docs auth].freeze
++      SERVICES = %w[source plan memory docs auth monitor].freeze
 +      CURRENT = "plan"
 +      SKIP_TARGET = "#content-wrapper"
 +      HOST_LABEL = /\A(?!-)[a-z0-9-]{1,63}(?<!-)\z/
@@ -183,10 +201,10 @@ index 0000000..df38d02
 +end
 diff --git a/public/erynoa/ragfit-plan-layout.css b/public/erynoa/ragfit-plan-layout.css
 new file mode 100644
-index 0000000..ab1cbe2
+index 0000000..ae168b6
 --- /dev/null
 +++ b/public/erynoa/ragfit-plan-layout.css
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,30 @@
 +/* RagFit patch 0005 (erynoa-header): fit the Erynoa header above the OpenProject 17 layout.
 + * SPDX-License-Identifier: GPL-3.0-only — part of RagFit | Plan (see CHANGES-RAGFIT.md).
 + * OpenProject's body does not scroll; #content-wrapper and the menu sidebar take 100dvh minus the app header.
@@ -213,12 +231,6 @@ index 0000000..ab1cbe2
 +  ._header-scrolled #main-menu #menu-sidebar {
 +    height: calc(100dvh - var(--ragfit-erh-h));
 +  }
-+}
-+/* narrow phones (360px and up): all five service links fit without horizontal scrolling; browsers do not
-+ * scroll a partly visible focused link into view, so a cut-off last link would stay cut off on Tab. */
-+@media (max-width: 400px) {
-+  .erh-nav ul { gap: 2px; }
-+  .erh-nav a { padding: 0 4px; }
 +}
 +@media print {
 +  #content-wrapper, #main-menu #menu-sidebar { height: auto; }
@@ -277,7 +289,7 @@ index 0000000..52cba5d
 +end
 diff --git a/spec/requests/ragfit/erynoa_header_spec.rb b/spec/requests/ragfit/erynoa_header_spec.rb
 new file mode 100644
-index 0000000..f24a934
+index 0000000..05fcf9e
 --- /dev/null
 +++ b/spec/requests/ragfit/erynoa_header_spec.rb
 @@ -0,0 +1,57 @@
@@ -299,14 +311,14 @@ index 0000000..f24a934
 +      expect(first.name).to eq("header")
 +      expect(first["class"]).to eq("erh")
 +      expect(header["role"]).to eq("banner")
-+      expect(header["data-erynoa-header"]).to eq("1.1.1")
++      expect(header["data-erynoa-header"]).to eq("1.1.2")
 +      expect(header.at_css("a.erh-skip")["href"]).to eq("#content-wrapper")
 +      expect(header.at_css("a.erh-brand")["href"]).to eq("https://source.example.org/")
 +      expect(header.css("nav a").map { |a| a["href"] })
-+        .to eq(%w[source plan memory docs auth].map { |s| "https://#{s}.example.org/" })
++        .to eq(%w[source plan memory docs auth monitor].map { |s| "https://#{s}.example.org/" })
 +      expect(header.css("a[aria-current='page']").map { |a| a["data-erh-service"] }).to eq(["plan"])
 +      expect(header.css("script")).to be_empty
-+      expect(response.body).to include('href="/erynoa/1.1.1/erynoa-header.v1.css"')
++      expect(response.body).to include('href="/erynoa/1.1.2/erynoa-header.v1.css"')
 +      expect(response.body).to include('href="/erynoa/ragfit-plan-layout.css"')
 +      expect(response.body).not_to include("erynoa-header.v1.js")
 +    end

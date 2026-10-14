@@ -1,5 +1,5 @@
-<%# RagFit patch 0005 (erynoa-header): markup of erynoa-header.v1.html (Erynoa header 1.1.1, MIT; Erynoa name and
-    logo: brand assets of Erynoa, not licensed, see public/erynoa/1.1.1/NOTICE.md). Placeholders resolved here. %>
+<%# RagFit patch 0005 (erynoa-header): markup of erynoa-header.v1.html (Erynoa header 1.1.2, MIT; Erynoa name and
+    logo: brand assets of Erynoa, not licensed, see public/erynoa/1.1.2/NOTICE.md). Placeholders resolved here. %>
 <% erh = OpenProject::Ragfit::ErynoaHeader %>
 <% if erh.show?(params) && (erh_domain = erh.domain) %>
 <header class="erh" role="banner" data-erynoa-header="<%= erh::VERSION %>"<% if (erh_theme = erh.theme) %> data-erh-theme="<%= erh_theme %>"<% end %>>
@@ -9,7 +9,7 @@
   </a>
   <nav class="erh-nav" aria-label="RagFit services">
     <ul>
-<% { "source" => "Source", "plan" => "Plan", "memory" => "Memory", "docs" => "Docs", "auth" => "Auth" }.each do |service, label| %>
+<% { "source" => "Source", "plan" => "Plan", "memory" => "Memory", "docs" => "Docs", "auth" => "Auth", "monitor" => "Monitor" }.each do |service, label| %>
       <li><a data-erh-service="<%= service %>" href="<%= erh.service_url(service, erh_domain) %>"<% if service == erh::CURRENT %> aria-current="page"<% end %>><%= label %></a></li>
 <% end %>
     </ul>

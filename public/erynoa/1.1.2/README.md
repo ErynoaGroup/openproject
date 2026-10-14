@@ -1,7 +1,7 @@
-# Erynoa header v1.1.1
+# Erynoa header v1.1.2
 
 One shared top bar above every RagFit service UI: RagFit | Source, RagFit | Plan,
-RagFit | Memory, RagFit | Docs and RagFit | Auth.
+RagFit | Memory, RagFit | Docs, RagFit | Auth and RagFit | Monitor.
 
 | File | Purpose |
 |------|---------|
@@ -16,7 +16,7 @@ RagFit | Memory, RagFit | Docs and RagFit | Auth.
 Keep the CSS and SVG **in the same directory** (the mask URL is relative).
 Do not push them through an asset pipeline that fingerprints only one of them.
 Recommended layout in a consumer: `…/erynoa/<version>/` (e.g.
-`public/assets/erynoa/1.1.1/`), so caches never serve a stale file.
+`public/assets/erynoa/1.1.2/`), so caches never serve a stale file.
 
 ## Spec
 
@@ -115,9 +115,9 @@ from these files; otherwise the system stack applies.
 
 ## Versioning
 
-> **Tag `erynoa-header-v1.1.0` is invalid** — it points to v1.0.0 content (`250d5b85`). Pin `erynoa-header-v1.1.1` or later by commit SHA. See `CHANGELOG.md`.
+> **Tag `erynoa-header-v1.1.0` is invalid** — it points to v1.0.0 content (`250d5b85`). Pin `erynoa-header-v1.1.2` or later by commit SHA. See `CHANGELOG.md`.
 
-SemVer tags `erynoa-header-vX.Y.Z` (this: `erynoa-header-v1.1.1`). File names
+SemVer tags `erynoa-header-vX.Y.Z` (this: `erynoa-header-v1.1.2`). File names
 carry the major (`*.v1.*`); a breaking change (markup, class/token names,
 height) creates `*.v2.*`. Consumers pin by **commit SHA** and record it in their
 PROVENANCE along with `SHA256SUMS`. After changing a file run `just header-sums`,

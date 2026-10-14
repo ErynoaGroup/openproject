@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2026 Erynoa — <erynoa-header> v1.1.1. No deps, no network calls, no tracking.
+// Copyright (c) 2026 Erynoa — <erynoa-header> v1.1.2. No deps, no network calls, no tracking.
 // Usage: <erynoa-header current="plan" [domain="example.org"] [skip-target="#main"] [home="https://…/"] [theme="dark|light"]></erynoa-header>
 // home defaults to https://source.<domain>/.
 // Without `domain`, the base domain is derived from location.hostname by dropping the first label
 // (plan.example.org -> example.org). Requires erynoa-header.v1.css loaded in the page.
 (() => {
-  const SERVICES = [["source", "Source"], ["plan", "Plan"], ["memory", "Memory"], ["docs", "Docs"], ["auth", "Auth"]];
+  const SERVICES = [["source", "Source"], ["plan", "Plan"], ["memory", "Memory"], ["docs", "Docs"], ["auth", "Auth"], ["monitor", "Monitor"]];
   const baseDomain = (h) => { const p = h.split("."); return p.length > 2 ? p.slice(1).join(".") : h; };
   class ErynoaHeader extends HTMLElement {
     static get observedAttributes() { return ["current", "domain", "skip-target", "home", "theme"]; }
@@ -19,7 +19,7 @@
       const theme = this.getAttribute("theme");
       const slot = this.querySelector(".erh-slot-end");
       const h = document.createElement("header");
-      h.className = "erh"; h.setAttribute("role", "banner"); h.dataset.erynoaHeader = "1.1.1";
+      h.className = "erh"; h.setAttribute("role", "banner"); h.dataset.erynoaHeader = "1.1.2";
       if (theme === "dark" || theme === "light") h.dataset.erhTheme = theme;
       const a = (cls, href, text) => { const e = document.createElement("a"); e.className = cls; e.href = href; if (text) e.textContent = text; return e; };
       h.append(a("erh-skip", skip, "Skip to content"));

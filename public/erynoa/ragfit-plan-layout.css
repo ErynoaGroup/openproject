@@ -25,12 +25,6 @@
     height: calc(100dvh - var(--ragfit-erh-h));
   }
 }
-/* narrow phones (360px and up): all five service links fit without horizontal scrolling; browsers do not
- * scroll a partly visible focused link into view, so a cut-off last link would stay cut off on Tab. */
-@media (max-width: 400px) {
-  .erh-nav ul { gap: 2px; }
-  .erh-nav a { padding: 0 4px; }
-}
 @media print {
   #content-wrapper, #main-menu #menu-sidebar { height: auto; }
 }
