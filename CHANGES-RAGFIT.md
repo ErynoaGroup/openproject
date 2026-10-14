@@ -165,3 +165,14 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 - `README-RAGFIT-CI.md` updated.
 
 **Why:** With `fetch-depth: 1` the CI leak guard never ran the diff and commit-message scan, and the commit allowlist could not be checked. Once the scan ran, CSS at-rules and Ruby instance variables were reported as mentions.
+
+## 2026-10-14 — 0005 erynoa-header: package 1.1.2
+
+**What:**
+- `public/erynoa/1.1.1/` replaced by `public/erynoa/1.1.2/`: Erynoa header package 1.1.2 (tag `erynoa-header-v1.1.2` of the Erynoa assets repository, commit `fa07ded9e2ea1a29d355aa553f655936c2f3e05a`), copied unchanged including `LICENSE`, `NOTICE.md`, `PROVENANCE.md` and `SHA256SUMS`. New nav entry Monitor; the package itself now tightens the nav below 400px and lets it shrink and scroll.
+- `lib/open_project/ragfit/erynoa_header.rb` (version 1.1.2, service list), `app/views/ragfit/_erynoa_header.html.erb` (Monitor link), request spec and the `erynoa-header-sums` job in `erynoa-spec.yml` follow the new version.
+- `public/erynoa/ragfit-plan-layout.css`: the narrow-phone nav override (max-width 400px) is removed; the package covers it.
+- Screenshots in `docs/screenshots/erynoa-header/` redone (desktop light, dark, forced dark; 375, 360 and 320px).
+- Patch file `ragfit/patches/0005-erynoa-header.patch` regenerated.
+
+**Why:** Monitor is a RagFit service; the package release replaces our own spacing override.

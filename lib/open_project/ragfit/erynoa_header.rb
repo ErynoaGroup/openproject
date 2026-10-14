@@ -3,7 +3,7 @@
 # RagFit patch 0005 (erynoa-header, 2026-10-14): Erynoa header above the OpenProject layout.
 # GPLv3 §10 modification, see CHANGES-RAGFIT.md.
 #
-# The vendored package public/erynoa/1.1.1/ (ErynoaGroup/.assets, tag erynoa-header-v1.1.1, MIT code; Erynoa
+# The vendored package public/erynoa/1.1.2/ (ErynoaGroup/.assets, tag erynoa-header-v1.1.2, MIT code; Erynoa
 # name and logo not licensed, see its NOTICE.md) is served unchanged as static files. This file only renders the
 # partial with the package's markup and resolves its placeholders at request time:
 # - domain: RAGFIT_ERYNOA_DOMAIN, otherwise the configured host name minus its first label
@@ -15,9 +15,9 @@
 module OpenProject
   module Ragfit
     module ErynoaHeader
-      VERSION = "1.1.1"
+      VERSION = "1.1.2"
       ASSET_PATH = "/erynoa/#{VERSION}".freeze
-      SERVICES = %w[source plan memory docs auth].freeze
+      SERVICES = %w[source plan memory docs auth monitor].freeze
       CURRENT = "plan"
       SKIP_TARGET = "#content-wrapper"
       HOST_LABEL = /\A(?!-)[a-z0-9-]{1,63}(?<!-)\z/

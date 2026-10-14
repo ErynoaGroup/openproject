@@ -78,15 +78,15 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: sha256sum -c SHA256SUMS (public/erynoa/1.1.1)
-        working-directory: public/erynoa/1.1.1
+      - name: sha256sum -c SHA256SUMS (public/erynoa/1.1.2)
+        working-directory: public/erynoa/1.1.2
         run: |
           sha256sum --check --strict SHA256SUMS
           # every distributable file must be listed; only the package docs are outside SHA256SUMS
           listed=$(awk '{print $2}' SHA256SUMS | sort)
           present=$(find . -maxdepth 1 -type f ! -name SHA256SUMS ! -name README.md ! -name CHANGELOG.md -printf '%f\n' | sort)
           [ "$listed" = "$present" ] || { echo "file list differs from SHA256SUMS"; diff <(echo "$listed") <(echo "$present"); exit 1; }
-          grep -q 'erynoa-header-v1.1.1' README.md CHANGELOG.md
+          grep -q 'erynoa-header-v1.1.2' README.md CHANGELOG.md
 
   spec:
     name: rspec ragfit specs

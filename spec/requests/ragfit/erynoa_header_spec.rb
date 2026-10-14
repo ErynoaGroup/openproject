@@ -16,14 +16,14 @@ RSpec.describe "RagFit Erynoa header", type: :rails_request do
       expect(first.name).to eq("header")
       expect(first["class"]).to eq("erh")
       expect(header["role"]).to eq("banner")
-      expect(header["data-erynoa-header"]).to eq("1.1.1")
+      expect(header["data-erynoa-header"]).to eq("1.1.2")
       expect(header.at_css("a.erh-skip")["href"]).to eq("#content-wrapper")
       expect(header.at_css("a.erh-brand")["href"]).to eq("https://source.example.org/")
       expect(header.css("nav a").map { |a| a["href"] })
-        .to eq(%w[source plan memory docs auth].map { |s| "https://#{s}.example.org/" })
+        .to eq(%w[source plan memory docs auth monitor].map { |s| "https://#{s}.example.org/" })
       expect(header.css("a[aria-current='page']").map { |a| a["data-erh-service"] }).to eq(["plan"])
       expect(header.css("script")).to be_empty
-      expect(response.body).to include('href="/erynoa/1.1.1/erynoa-header.v1.css"')
+      expect(response.body).to include('href="/erynoa/1.1.2/erynoa-header.v1.css"')
       expect(response.body).to include('href="/erynoa/ragfit-plan-layout.css"')
       expect(response.body).not_to include("erynoa-header.v1.js")
     end

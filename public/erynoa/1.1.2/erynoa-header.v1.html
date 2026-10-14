@@ -1,11 +1,11 @@
 <!-- SPDX-License-Identifier: MIT -->
-<!-- Erynoa header v1.1.1. Placeholders, replaced by the app at render time (or use erynoa-header.v1.js):
+<!-- Erynoa header v1.1.2. Placeholders, replaced by the app at render time (or use erynoa-header.v1.js):
        __ERYNOA_DOMAIN__     base domain, e.g. derived from the app's own host by dropping the first label
        __ERH_HOME_URL__      logo link; default https://source.__ERYNOA_DOMAIN__/
        __ERH_SKIP_TARGET__   skip-link target; default #main
      Optional: data-erh-theme="dark|light" on <header> forces the theme. Set aria-current="page"
      on the current service. Logo/name: see NOTICE.md (not MIT). -->
-<header class="erh" role="banner" data-erynoa-header="1.1.1">
+<header class="erh" role="banner" data-erynoa-header="1.1.2">
   <a class="erh-skip" href="__ERH_SKIP_TARGET__">Skip to content</a>
   <a class="erh-brand" href="__ERH_HOME_URL__" aria-label="Erynoa">
     <span class="erh-logo" role="img" aria-label="Erynoa"></span>
@@ -17,6 +17,7 @@
       <li><a data-erh-service="memory" href="https://memory.__ERYNOA_DOMAIN__/">Memory</a></li>
       <li><a data-erh-service="docs"   href="https://docs.__ERYNOA_DOMAIN__/">Docs</a></li>
       <li><a data-erh-service="auth"   href="https://auth.__ERYNOA_DOMAIN__/">Auth</a></li>
+      <li><a data-erh-service="monitor" href="https://monitor.__ERYNOA_DOMAIN__/">Monitor</a></li>
     </ul>
   </nav>
   <div class="erh-slot-end"><!-- optional app slot (user menu etc.) --></div>
