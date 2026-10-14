@@ -97,6 +97,10 @@ RUN cp Gemfile.lock.bak Gemfile.lock && rm Gemfile.lock.bak && \
 FROM app-build AS app-build-slim
 COPY ./docker/prod/setup/prune-slim-runtime.sh ./docker/prod/setup/prune-slim-runtime.sh
 RUN ./docker/prod/setup/prune-slim-runtime.sh
+# RagFit: precompressed .br/.gz next to the assets (brotli only in this build stage), see CHANGES-RAGFIT.md.
+RUN apt-get update -qq && apt-get install -yq --no-install-recommends brotli && \
+  rm -rf /var/lib/apt/lists/* && \
+  ./ragfit/build/precompress-assets.sh "$APP_PATH/public/assets"
 
 FROM runtime-base AS app-runtime
 
