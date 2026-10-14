@@ -27,8 +27,9 @@ fi
 # Any digest marker left after neutralize() (i.e. not followed by ':') is a hit, whatever follows it
 P_DIGEST='@sha256'
 PATTERN="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_MENTION})|(${P_DIGEST})|(${P_INTERNAL})"
-# Code (patches and added lines of code files): Ruby instance variables (@provider), decorators and the like
-# look like mentions → no mention check there
+# Patch files: Ruby instance variables (@provider) look like mentions → no mention check there.
+# Added lines of code files are scanned with the full PATTERN after ragfit/ci/leak-guard-code.pl has
+# neutralized at-sign identifiers in code position only (comments, strings and ERB text stay mention-checked).
 PATTERN_CODE="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_INTERNAL})"
 
 # Allowed constructs are NEUTRALIZED by replacement on the raw text, never used to skip whole
@@ -50,10 +51,17 @@ neutralize_css() {
 fail=0
 # Runs in the PARENT shell (never `... | scan`), so fail=1 survives. Fails closed: grep exit 1 means
 # no hits, anything >= 2 (e.g. an invalid RAGFIT_LEAK_EXTRA pattern) fails the guard.
-scan() { # stdin: text, $1: label, $2: optional pattern, $3: "css" to neutralize CSS at-rules
-  local hits rc=0 css=cat
-  [ "${3:-}" = css ] && css=neutralize_css
-  hits=$(neutralize | $css | grep -nEi -e "${2:-$PATTERN}") || rc=$?
+CODE_FILTER="$(dirname "$0")/leak-guard-code.pl"
+neutralize_code() { perl "$CODE_FILTER" "$1"; }
+scan() { # stdin: text, $1: label, $2: optional pattern, $3: "css" (CSS at-rules) or ruby|js|erb (code position)
+  local hits rc=0 filter=(cat)
+  case "${3:-}" in
+    css) filter=(neutralize_css) ;;
+    ruby|js|erb) filter=(neutralize_code "$3") ;;
+    '') ;;
+    *) echo "leak-guard: ERROR unknown scan mode '$3'" >&2; fail=1; return 0 ;;
+  esac
+  hits=$(neutralize | "${filter[@]}" | grep -nEi -e "${2:-$PATTERN}") || rc=$?
   if [ "$rc" -ge 2 ]; then echo "leak-guard: ERROR scanning $1 (grep exit $rc, invalid pattern?)" >&2; fail=1; return 0; fi
   if [ -n "$hits" ]; then echo "LEAK in $1:"; echo "$hits" | sed 's/^/  /'; fail=1; fi
   return 0
@@ -68,8 +76,13 @@ added_lines() { awk '/^diff --git /{h=0; next} /^@@ /{h=1; next} h && /^\+/{prin
 # Test hook (ragfit/ci/leak-guard-test.sh): scan stdin with the real patterns, exit 1 on a hit
 if [ "${1:-}" = --stdin ]; then scan stdin; [ "$fail" = 0 ] || exit 1; exit 0; fi
 if [ "${1:-}" = --stdin-css ]; then scan stdin "$PATTERN" css; [ "$fail" = 0 ] || exit 1; exit 0; fi
-# pathspecs: code files get PATTERN_CODE, stylesheets the full pattern with CSS at-rules neutralized
-CODE_SPEC=(':(glob)**/*.rb' ':(glob)**/*.rake' ':(glob)**/*.erb' ':(glob)**/*.js' ':(glob)**/*.mjs' ':(glob)**/*.ts' ':(glob)**/Gemfile' ':(glob)**/*.gemspec')
+if [ "${1:-}" = --stdin-code ]; then scan stdin "$PATTERN" "${2:-}"; [ "$fail" = 0 ] || exit 1; exit 0; fi
+# pathspecs: code files get the full pattern with at-sign identifiers neutralized in code position only,
+# stylesheets the full pattern with CSS at-rules neutralized
+RUBY_SPEC=(':(glob)**/*.rb' ':(glob)**/*.rake' ':(glob)**/Gemfile' ':(glob)**/*.gemspec')
+JS_SPEC=(':(glob)**/*.js' ':(glob)**/*.mjs' ':(glob)**/*.ts')
+ERB_SPEC=(':(glob)**/*.erb')
+CODE_SPEC=("${RUBY_SPEC[@]}" "${JS_SPEC[@]}" "${ERB_SPEC[@]}")
 CSS_SPEC=(':(glob)**/*.css' ':(glob)**/*.scss' ':(glob)**/*.sass')
 EXCL_SPEC=(':!ragfit/ci/leak-guard.sh' ':!ragfit/ci/leak-guard-test.sh' ':!ragfit/patches')
 
@@ -95,8 +108,12 @@ if [ -n "$base" ] && git rev-parse -q --verify "${base}^{commit}" >/dev/null && 
   other=(); for s in "${CODE_SPEC[@]}" "${CSS_SPEC[@]}"; do other+=(":(exclude,glob)${s#:(glob)}"); done
   added=$(git diff "${base}"...HEAD -- . "${EXCL_SPEC[@]}" "${other[@]}" | added_lines)
   scan "diff ${base}...HEAD (added lines)" <<<"$added"
-  added=$(git diff "${base}"...HEAD -- "${CODE_SPEC[@]}" "${EXCL_SPEC[@]}" | added_lines)
-  scan "diff ${base}...HEAD (added code lines)" "$PATTERN_CODE" <<<"$added"
+  added=$(git diff "${base}"...HEAD -- "${RUBY_SPEC[@]}" "${EXCL_SPEC[@]}" | added_lines)
+  scan "diff ${base}...HEAD (added Ruby lines)" "$PATTERN" ruby <<<"$added"
+  added=$(git diff "${base}"...HEAD -- "${JS_SPEC[@]}" "${EXCL_SPEC[@]}" | added_lines)
+  scan "diff ${base}...HEAD (added JS/TS lines)" "$PATTERN" js <<<"$added"
+  added=$(git diff "${base}"...HEAD -- "${ERB_SPEC[@]}" "${EXCL_SPEC[@]}" | added_lines)
+  scan "diff ${base}...HEAD (added ERB lines)" "$PATTERN" erb <<<"$added"
   added=$(git diff "${base}"...HEAD -- "${CSS_SPEC[@]}" "${EXCL_SPEC[@]}" | added_lines)
   scan "diff ${base}...HEAD (added stylesheet lines)" "$PATTERN" css <<<"$added"
   added=$(git diff "${base}"...HEAD -- ragfit/patches | added_lines)

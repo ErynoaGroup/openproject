@@ -43,6 +43,34 @@ css_flag '@mediaeval {'
 css_flag '@media-team please check'
 css_flag 'a { color: red; } host.internal'
 flag '@media (max-width: 400px) {'
+# Code files: at-sign identifiers neutralized in code position only; comments, strings, ERB text still checked
+code_pass() { printf '%s\n' "$2" | "$g" --stdin-code "$1" >/dev/null || { echo "FAIL ($1 flagged, expected pass): $2"; rc=1; }; }
+code_flag() { ! printf '%s\n' "$2" | "$g" --stdin-code "$1" >/dev/null || { echo "FAIL ($1 passed, expected flag): $2"; rc=1; }; }
+code_pass ruby '      @prefix = prefix.to_s.strip'
+code_pass ruby '    return if @registered'
+code_pass ruby '  @@cache ||= {}'
+code_pass ruby 'log "deleting #{@login}"'
+code_pass ruby 'x = { a: @a, b: [@b] }'
+code_flag ruby '# thanks @alice'
+code_flag ruby '  @prefix = x # cc @alice'
+code_flag ruby 'raise "ask @alice"'
+code_flag ruby "msg = 'ping @alice'"
+code_flag ruby '  @x = "10.1.2.3"'
+code_pass js '@Component({ selector: "x" })'
+code_pass js 'this.@x'
+code_flag js '// cc @alice'
+code_flag js 'f(); // cc @alice'
+code_flag js '/* thanks @alice */'
+code_flag js ' * @alice wrote this'
+code_flag js 'const s = "ping @alice";'
+code_pass erb '<%= @user.name %>'
+code_pass erb '<% if @show %><p>x</p><% end %>'
+code_pass erb '<%= render partial: "x", locals: { u: @user } %>'
+code_flag erb '<%# thanks @alice %>'
+code_flag erb '<p>cc @alice</p>'
+code_flag erb '<p>cc @alice <%= @user.name %></p>'
+code_flag erb '<%= @user.name %> ping @alice'
+code_flag erb '<%= t("hi @alice") %>'
 
 # Full-script tests on a temporary git repo (base tag, then leaks in a file, commit message, path)
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
@@ -59,6 +87,7 @@ run() { # $1: expected exit (0/1/err), $2: label, rest: env
 fresh() {
   rm -rf "$tmp/r"; git init -q "$tmp/r"; mkdir -p "$tmp/r/ragfit/ci"
   cp "$g" "$tmp/r/ragfit/ci/leak-guard.sh"
+  cp "$(dirname "$g")/leak-guard-code.pl" "$tmp/r/ragfit/ci/leak-guard-code.pl"
   ( cd "$tmp/r" && git add -A && git -c user.name=T -c user.email=t@erynoa.com commit -qm base && git tag v0.0.1 )
 }
 commit() { ( cd "$tmp/r" && git add -A && git -c user.name=T -c user.email=t@erynoa.com commit -qm "$1" ); }
@@ -82,6 +111,16 @@ fresh; mkdir -p "$tmp/r/docs"; printf 'use @media queries\n' > "$tmp/r/docs/a.md
 run 1 'at-rule word outside stylesheets'
 fresh; mkdir -p "$tmp/r/app"; printf 'def x\n  @prefix = 1\nend\n' > "$tmp/r/app/a.rb"; commit 'app: ruby'
 run 0 'ruby instance variable in added code lines'
+fresh; mkdir -p "$tmp/r/app"; printf 'def x\n  # thanks @alice\n  @prefix = 1\nend\n' > "$tmp/r/app/a.rb"; commit 'app: ruby'
+run 1 'mention in a Ruby comment'
+fresh; mkdir -p "$tmp/r/app/views"; printf '<%%= @user.name %%>\n<%%# x %%>\n' > "$tmp/r/app/views/a.html.erb"; commit 'app: erb'
+run 0 'ERB instance variable in code position'
+fresh; mkdir -p "$tmp/r/app/views"; printf '<p>cc @alice</p>\n<%%= @user.name %%>\n' > "$tmp/r/app/views/a.html.erb"; commit 'app: erb'
+run 1 'mention in ERB text'
+fresh; mkdir -p "$tmp/r/app/views"; printf '<%%#\n  thanks @alice\n%%>\n' > "$tmp/r/app/views/a.html.erb"; commit 'app: erb'
+run 1 'mention in a multi-line ERB comment'
+fresh; mkdir -p "$tmp/r/web"; printf 'f();\n/*\n  thanks @alice\n*/\n' > "$tmp/r/web/a.js"; commit 'web: js'
+run 1 'mention in a multi-line JS block comment'
 fresh; mkdir -p "$tmp/r/app"; printf 'x = "10.1.2.3"\n' > "$tmp/r/app/a.rb"; commit 'app: ruby'
 run 1 'private IP in added code lines'
 fresh; ( cd "$tmp/r" && git tag -d v0.0.1 >/dev/null )
