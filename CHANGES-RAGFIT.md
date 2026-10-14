@@ -139,3 +139,15 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 - New `ragfit/ci/precompress-test.sh` (fixture: byte-identical decompression, mtime, skipped small, binary and incompressible files, idempotent second run) and job `precompress` in `erynoa-spec.yml` (shellcheck plus the test); the workflow paths include `docker/prod/Dockerfile`.
 
 **Why:** The main frontend bundle is 7.2 MB. Compressing it per request in the proxy took about 4 s; precompressed variants let the server send it without per-request compression (Rails `ActionDispatch::Static` serves `.br`/`.gz` when the client accepts them). The proxy switch is a separate deployment change after a release.
+
+## 2026-10-14 — Leak guard: diff scan in CI, CSS at-rules
+
+**What:**
+- New `ragfit/ci/leak-base-fetch.sh`: fetches the upstream tag of `lib/open_project/version.rb` (depth 1) and deepens the shallow CI checkout until it reaches the merge base; prints the tag.
+- `ragfit/ci/leak-guard.sh`: with `RAGFIT_LEAK_REQUIRE_BASE=true` a missing base fails instead of skipping the diff and commit-message scan; logs base, merge base and commit count. Added lines of code files (`.rb`, `.rake`, `.erb`, `.js`, `.mjs`, `.ts`, Gemfile, gemspec) use the code pattern without the mention check, like the patch files. In stylesheets (`.css`, `.scss`, `.sass`, own files and added lines) the exact CSS and Sass at-rule keywords (`@media`, `@supports`, `@font-face`, `@import`, `@keyframes`, `@layer`, `@container`, vendor-prefixed forms, ...) are neutralized; any other mention is still a hit.
+- `ragfit/ci/leak-guard-test.sh`: fixtures for CSS at-rules (pass) and mentions in stylesheets, at-rule words outside stylesheets, private IPs in code, Ruby instance variables, and the skip or fail without a base. The fixture for an added line starting with `+` is now a text file.
+- `erynoa-build.yml` guard job: runs the leak guard tests, then the base fetch and the leak guard with `RAGFIT_LEAK_REQUIRE_BASE=true`.
+- `erynoa-spec.yml`: new job `leak-guard` (shellcheck, tests, base fetch, scan; no secrets, so without the internal names).
+- `README-RAGFIT-CI.md` updated.
+
+**Why:** With `fetch-depth: 1` the CI leak guard never ran the diff and commit-message scan, and the commit allowlist could not be checked. Once the scan ran, CSS at-rules and Ruby instance variables were reported as mentions.

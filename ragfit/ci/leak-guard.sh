@@ -3,6 +3,8 @@
 # in our own files or in our changes compared to upstream. Upstream files are not scanned (they contain
 # upstream e-mail addresses and code annotations), only what we add.
 # Usage: ragfit/ci/leak-guard.sh [upstream-ref]   (default: newest vX.Y.Z tag in the repo)
+# RAGFIT_LEAK_REQUIRE_BASE=true: fail instead of skipping the diff/commit-message scan when no base is
+# available (CI; a shallow checkout is made usable by ragfit/ci/leak-base-fetch.sh).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -25,7 +27,8 @@ fi
 # Any digest marker left after neutralize() (i.e. not followed by ':') is a hit, whatever follows it
 P_DIGEST='@sha256'
 PATTERN="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_MENTION})|(${P_DIGEST})|(${P_INTERNAL})"
-# Code patches: Ruby instance variables (@provider) look like mentions → no mention check there
+# Code (patches and added lines of code files): Ruby instance variables (@provider), decorators and the like
+# look like mentions → no mention check there
 PATTERN_CODE="(${P_TAILNET})|(${P_CGNAT})|(${P_PRIVIP})|(${P_INTERNAL})"
 
 # Allowed constructs are NEUTRALIZED by replacement on the raw text, never used to skip whole
@@ -37,13 +40,20 @@ neutralize() {
          -e 's/(uses:[[:space:]]+[^[:space:]@]+)@([^[:space:]]+)/\1_at_\2/g' \
          -e 's/[A-Za-z0-9._+-]*@users\.noreply\.github\.com/noreply-address/gI'
 }
+# Stylesheets only: CSS at-rules (@media, @supports, @font-face, @-webkit-keyframes, ...) are not mentions.
+# Only the exact at-rule keyword is neutralized; anything else after '@' is still checked.
+CSS_AT_RULES='media|supports|font-face|import|keyframes|layer|container|charset|namespace|page|property|counter-style|font-feature-values|font-palette-values|scope|starting-style|view-transition|document|use|forward|include|mixin|extend|if|else|each|for|while|function|return|warn|error|debug|at-root|content'
+neutralize_css() {
+  sed -E -e "s/(^|[^A-Za-z0-9_@-])@(-[a-z]+-)?(${CSS_AT_RULES})([^A-Za-z0-9_-]|$)/\1_atrule_\2\3\4/gI"
+}
 
 fail=0
 # Runs in the PARENT shell (never `... | scan`), so fail=1 survives. Fails closed: grep exit 1 means
 # no hits, anything >= 2 (e.g. an invalid RAGFIT_LEAK_EXTRA pattern) fails the guard.
-scan() { # stdin: text, $1: label, $2: optional pattern
-  local hits rc=0
-  hits=$(neutralize | grep -nEi -e "${2:-$PATTERN}") || rc=$?
+scan() { # stdin: text, $1: label, $2: optional pattern, $3: "css" to neutralize CSS at-rules
+  local hits rc=0 css=cat
+  [ "${3:-}" = css ] && css=neutralize_css
+  hits=$(neutralize | $css | grep -nEi -e "${2:-$PATTERN}") || rc=$?
   if [ "$rc" -ge 2 ]; then echo "leak-guard: ERROR scanning $1 (grep exit $rc, invalid pattern?)" >&2; fail=1; return 0; fi
   if [ -n "$hits" ]; then echo "LEAK in $1:"; echo "$hits" | sed 's/^/  /'; fail=1; fi
   return 0
@@ -57,6 +67,11 @@ added_lines() { awk '/^diff --git /{h=0; next} /^@@ /{h=1; next} h && /^\+/{prin
 
 # Test hook (ragfit/ci/leak-guard-test.sh): scan stdin with the real patterns, exit 1 on a hit
 if [ "${1:-}" = --stdin ]; then scan stdin; [ "$fail" = 0 ] || exit 1; exit 0; fi
+if [ "${1:-}" = --stdin-css ]; then scan stdin "$PATTERN" css; [ "$fail" = 0 ] || exit 1; exit 0; fi
+# pathspecs: code files get PATTERN_CODE, stylesheets the full pattern with CSS at-rules neutralized
+CODE_SPEC=(':(glob)**/*.rb' ':(glob)**/*.rake' ':(glob)**/*.erb' ':(glob)**/*.js' ':(glob)**/*.mjs' ':(glob)**/*.ts' ':(glob)**/Gemfile' ':(glob)**/*.gemspec')
+CSS_SPEC=(':(glob)**/*.css' ':(glob)**/*.scss' ':(glob)**/*.sass')
+EXCL_SPEC=(':!ragfit/ci/leak-guard.sh' ':!ragfit/ci/leak-guard-test.sh' ':!ragfit/patches')
 
 own_files=()
 for p in "${OWN[@]}"; do
@@ -65,15 +80,25 @@ done
 for f in "${own_files[@]}"; do
   case "$f" in ragfit/ci/leak-guard.sh|ragfit/ci/leak-guard-test.sh) continue ;; esac   # patterns / test fixtures
   [ -f "$f" ] || { echo "missing in checkout (sparse?): $f" >&2; fail=1; continue; }
-  case "$f" in *.patch) scan "$f" "$PATTERN_CODE" < "$f" ;; *) scan "$f" < "$f" ;; esac
+  case "$f" in
+    *.patch) scan "$f" "$PATTERN_CODE" < "$f" ;;
+    *.css|*.scss|*.sass) scan "$f" "$PATTERN" css < "$f" ;;
+    *) scan "$f" < "$f" ;;
+  esac
 done
 scan "own file paths" < <(printf '%s\n' "${own_files[@]}" | paths)
 
 base="${1:-$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)}"
 if [ -n "$base" ] && git rev-parse -q --verify "${base}^{commit}" >/dev/null && git merge-base "$base" HEAD >/dev/null 2>&1; then
   # strip the diff "+" so a mention at the start of an added line still matches
-  added=$(git diff "${base}"...HEAD -- . ':!ragfit/ci/leak-guard.sh' ':!ragfit/ci/leak-guard-test.sh' ':!ragfit/patches' | added_lines)
+  echo "leak-guard: diff and commit-message scan against ${base} (merge base $(git merge-base "$base" HEAD), $(git rev-list --count "${base}"..HEAD) commits)"
+  other=(); for s in "${CODE_SPEC[@]}" "${CSS_SPEC[@]}"; do other+=(":(exclude,glob)${s#:(glob)}"); done
+  added=$(git diff "${base}"...HEAD -- . "${EXCL_SPEC[@]}" "${other[@]}" | added_lines)
   scan "diff ${base}...HEAD (added lines)" <<<"$added"
+  added=$(git diff "${base}"...HEAD -- "${CODE_SPEC[@]}" "${EXCL_SPEC[@]}" | added_lines)
+  scan "diff ${base}...HEAD (added code lines)" "$PATTERN_CODE" <<<"$added"
+  added=$(git diff "${base}"...HEAD -- "${CSS_SPEC[@]}" "${EXCL_SPEC[@]}" | added_lines)
+  scan "diff ${base}...HEAD (added stylesheet lines)" "$PATTERN" css <<<"$added"
   added=$(git diff "${base}"...HEAD -- ragfit/patches | added_lines)
   scan "patches diff ${base}...HEAD" "$PATTERN_CODE" <<<"$added"
   changed=$(git diff --name-only "${base}"...HEAD)
@@ -110,6 +135,9 @@ if [ -n "$base" ] && git rev-parse -q --verify "${base}^{commit}" >/dev/null && 
     msgs+=$(git log -1 --format='%an <%ae>%n%B' "$c")$'\n'
   done <<<"$revs"
   scan "commit messages ${base}..HEAD" <<<"$msgs"
+elif [ "${RAGFIT_LEAK_REQUIRE_BASE:-}" = true ]; then
+  echo "leak-guard: ERROR no base '${base}' with a merge base in this checkout (shallow? run ragfit/ci/leak-base-fetch.sh) – failing" >&2
+  fail=1
 else
   echo "note: no upstream tag with merge base (shallow clone?), diff/commit-message scan skipped"
 fi
