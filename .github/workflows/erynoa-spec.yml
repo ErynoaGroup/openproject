@@ -30,6 +30,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  leak-guard:
+    # Without the internal-names secret (this workflow uses no secrets); the release guard in erynoa-build.yml
+    # runs the same scan with it. The diff and commit-message scan must run (RAGFIT_LEAK_REQUIRE_BASE).
+    name: leak guard (files, diff, commit messages)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: shellcheck
+        run: shellcheck --severity=warning ragfit/ci/leak-guard.sh ragfit/ci/leak-guard-test.sh ragfit/ci/leak-base-fetch.sh
+      - name: Leak guard tests
+        run: ragfit/ci/leak-guard-test.sh
+      - name: Leak guard
+        env:
+          RAGFIT_LEAK_REQUIRE_BASE: "true"
+        run: |
+          set -euo pipefail
+          base=$(ragfit/ci/leak-base-fetch.sh)   # shallow checkout: fetch the upstream tag, deepen to the merge base
+          ragfit/ci/leak-guard.sh "$base"
+
   precompress:
     name: precompress assets script
     runs-on: ubuntu-24.04

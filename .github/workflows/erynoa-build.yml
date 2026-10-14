@@ -42,11 +42,17 @@ jobs:
           persist-credentials: false
       - name: Trigger and runner check (no automatic triggers, GitHub-hosted runners only)
         run: ragfit/ci/trigger-check.sh
-      - name: Leak guard (own files only in CI; diff/commit scan needs upstream tags, run `just ci-quick` locally)
+      - name: Leak guard tests
+        run: ragfit/ci/leak-guard-test.sh
+      - name: Leak guard (own files, diff and commit messages since the upstream tag)
         env:
           RAGFIT_LEAK_REQUIRE_EXTRA: "true"
+          RAGFIT_LEAK_REQUIRE_BASE: "true"
           RAGFIT_LEAK_EXTRA: ${{ secrets.RAGFIT_LEAK_EXTRA }}   # internal names, never in the repo
-        run: ragfit/ci/leak-guard.sh
+        run: |
+          set -euo pipefail
+          base=$(ragfit/ci/leak-base-fetch.sh)   # shallow checkout: fetch the upstream tag, deepen to the merge base
+          ragfit/ci/leak-guard.sh "$base"
       - name: Brand assets unchanged (ragfit/brand/PROVENANCE.md)
         run: ragfit/ci/asset-guard.sh
       - name: Upstream license notices unchanged (vs. upstream tag of lib/open_project/version.rb)
