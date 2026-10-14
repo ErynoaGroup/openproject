@@ -43,7 +43,9 @@ Leak guard in CI: the guard job (erynoa-build.yml) and the `leak-guard` job of e
 shallow checkout to the merge base, so the diff and commit-message scans (and the commit allowlist) really run;
 `RAGFIT_LEAK_REQUIRE_BASE=true` fails the job if they cannot. The guard job fails if the repository secret
 `RAGFIT_LEAK_EXTRA` is empty; erynoa-spec.yml uses no secrets and scans without the internal names.
-Added lines of code files (Ruby, ERB, JS/TS) are scanned without the mention check (instance variables);
+Added lines of code files (Ruby, ERB, JS/TS) get the full check after `ragfit/ci/leak-guard-code.pl` has neutralized
+at-sign identifiers in code position (instance variables, decorators); comments, string literals and ERB text outside
+`<% %>` are still mention-checked;
 in stylesheets CSS at-rules such as `@media` are not mentions, everything else after an at sign still is.
 
 Notes:

@@ -165,3 +165,13 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 - `README-RAGFIT-CI.md` updated.
 
 **Why:** With `fetch-depth: 1` the CI leak guard never ran the diff and commit-message scan, and the commit allowlist could not be checked. Once the scan ran, CSS at-rules and Ruby instance variables were reported as mentions.
+
+## 2026-10-14 — Leak guard: mention check in code comments and strings
+
+**What:**
+- New `ragfit/ci/leak-guard-code.pl`: for added lines of Ruby (`.rb`, `.rake`, Gemfile, gemspec), JS/TS (`.js`, `.mjs`, `.ts`) and ERB files it neutralizes an at sign followed by an identifier only in code position (instance and class variables, decorators, also inside Ruby `#{...}`). Comments (`#`, `//`, `/* */` across lines, JSDoc continuation lines, `<%# %>` across lines), string literals and ERB text outside `<% %>` are left unchanged.
+- `ragfit/ci/leak-guard.sh`: added lines of code files are scanned with the full pattern after that filter instead of the code pattern without the mention check; new test hook `--stdin-code ruby|js|erb`. Patch files keep the code pattern.
+- `ragfit/ci/leak-guard-test.sh`: fixtures for code positions (pass) and for mentions in Ruby, JS and ERB comments, strings and ERB text (flagged), plus repository cases for Ruby comments, ERB text, multi-line ERB comments and JS block comments.
+- `README-RAGFIT-CI.md` updated.
+
+**Why:** The previous exception skipped the mention check for whole code files, so a mention in a comment or a string of our code would not be reported.
