@@ -139,3 +139,17 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 - New `ragfit/ci/precompress-test.sh` (fixture: byte-identical decompression, mtime, skipped small, binary and incompressible files, idempotent second run) and job `precompress` in `erynoa-spec.yml` (shellcheck plus the test); the workflow paths include `docker/prod/Dockerfile`.
 
 **Why:** The main frontend bundle is 7.2 MB. Compressing it per request in the proxy took about 4 s; precompressed variants let the server send it without per-request compression (Rails `ActionDispatch::Static` serves `.br`/`.gz` when the client accepts them). The proxy switch is a separate deployment change after a release.
+
+## 2026-10-14 — 0005 erynoa-header
+
+**What:** The shared Erynoa header bar is rendered above the OpenProject UI.
+- `public/erynoa/1.1.1/`: Erynoa header package 1.1.1 (tag `erynoa-header-v1.1.1` of the Erynoa assets repository, commit `d3ccabf9d59c62b70a0d2fbeafdb12d162d57463`), copied unchanged including `LICENSE`, `NOTICE.md`, `PROVENANCE.md` and `SHA256SUMS`. Served by the Rails public file server; no CDN, no web fonts (system font stack), no JavaScript needed.
+- `app/views/layouts/base.html.erb`: new hook `view_layouts_base_body_top` as the first element of `<body>`.
+- New `lib/open_project/ragfit/erynoa_header.rb` (hook listener and helpers), `config/initializers/ragfit_erynoa_header.rb`, partials `app/views/ragfit/_erynoa_header_head.html.erb` and `_erynoa_header.html.erb` (package markup, placeholders resolved: `data-erh-theme` from the user theme, nothing for "sync with OS"; `aria-current` on Plan; skip link to `#content-wrapper`; logo and service links built at runtime from `RAGFIT_ERYNOA_DOMAIN`, else from the host name setting minus its first label, `RAGFIT_ERYNOA_HOME_URL` optional, https only). Without a resolvable domain (e.g. a bare `localhost`) nothing is rendered. Not rendered for `layout` requests (modals, partial reloads).
+- New `public/erynoa/ragfit-plan-layout.css`: subtracts the bar height from the OpenProject content and sidebar heights, moves the fixed mobile header below the bar, tightens the service link spacing up to 400px width so all links fit from 360px, print without fixed heights.
+- New specs `spec/lib/open_project/ragfit/erynoa_header_spec.rb` and `spec/requests/ragfit/erynoa_header_spec.rb`; `erynoa-spec.yml` runs them and a new job `erynoa-header-sums` checks `SHA256SUMS` of the vendored package.
+- Screenshots of a static test page: `docs/screenshots/erynoa-header/`.
+
+**License:** The header code is MIT (GPLv3-compatible). The Erynoa name and logo are not licensed by the package (`NOTICE.md`); they are shipped as a separate, unchanged file next to the GPL code and are not covered by GPL-3.0 (GPLv3 §7(e): no trademark rights granted). Forks must remove or replace them.
+
+**Why:** One consistent navigation bar across the RagFit services. Patch file: `ragfit/patches/0005-erynoa-header.patch`.

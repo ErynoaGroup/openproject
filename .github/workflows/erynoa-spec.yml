@@ -1,6 +1,7 @@
 name: RagFit spec (oidc-admin-group)
 
-# RagFit fork: runs only the RagFit specs (OIDC admin group, E2E user cleanup) on a free GitHub-hosted runner.
+# RagFit fork: runs only the RagFit specs (OIDC admin group, E2E user cleanup, Erynoa header) and checks the vendored
+# Erynoa header package against its SHA256SUMS, on free GitHub-hosted runners.
 # Allowed automatic trigger: pull_request limited to the paths below (see ragfit/ci/trigger-check.sh).
 on:
   pull_request:
@@ -11,6 +12,13 @@ on:
       - "app/services/ragfit/**"
       - "lib/tasks/ragfit_e2e.rake"
       - "spec/services/ragfit/**"
+      - "public/erynoa/**"
+      - "lib/open_project/ragfit/**"
+      - "app/views/ragfit/**"
+      - "app/views/layouts/base.html.erb"
+      - "config/initializers/ragfit_erynoa_header.rb"
+      - "spec/requests/ragfit/**"
+      - "spec/lib/open_project/ragfit/**"
       - ".github/workflows/erynoa-spec.yml"
   workflow_dispatch:
 
@@ -37,6 +45,25 @@ jobs:
         run: shellcheck ragfit/build/precompress-assets.sh ragfit/ci/precompress-test.sh
       - name: precompress-test
         run: ragfit/ci/precompress-test.sh
+
+  erynoa-header-sums:
+    name: erynoa header package checksums
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: sha256sum -c SHA256SUMS (public/erynoa/1.1.1)
+        working-directory: public/erynoa/1.1.1
+        run: |
+          sha256sum --check --strict SHA256SUMS
+          # every distributable file must be listed; only the package docs are outside SHA256SUMS
+          listed=$(awk '{print $2}' SHA256SUMS | sort)
+          present=$(find . -maxdepth 1 -type f ! -name SHA256SUMS ! -name README.md ! -name CHANGELOG.md -printf '%f\n' | sort)
+          [ "$listed" = "$present" ] || { echo "file list differs from SHA256SUMS"; diff <(echo "$listed") <(echo "$present"); exit 1; }
+          grep -q 'erynoa-header-v1.1.1' README.md CHANGELOG.md
 
   spec:
     name: rspec ragfit specs
@@ -91,3 +118,5 @@ jobs:
           modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_login_gate_spec.rb
           modules/openid_connect/spec/lib/open_project/openid_connect/ragfit_revoke_ungated_spec.rb
           spec/services/ragfit/e2e_user_cleanup_spec.rb
+          spec/lib/open_project/ragfit/erynoa_header_spec.rb
+          spec/requests/ragfit/erynoa_header_spec.rb
