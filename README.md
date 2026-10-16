@@ -17,7 +17,7 @@
 | **System of Record** | Projects, WorkPackages, Sprints, Boards, Roadmaps, Relations, TimeEntries |
 | **Container Build** | `nix build .#container` / `just image` (leichtgewichtiges Rootless-OCI-Image) · Release-CI Multi-Arch via `docker/prod/Dockerfile` |
 
-**RagFit | Plan** ist das zentrale Projekt- und Arbeitsplanungs-System-of-Record (Schicht `L3`) der Plattform-Dienstfamilie **`RagFit | *`** (`L0`–`L6`). Es verwaltet Projects, WorkPackages, Sprints, Agile Boards, Roadmaps und TimeEntries. Die Anmeldung erfolgt per OpenID Connect mit strikter `<org>:<team>`-Autorisierung; die Anbindung an `RagFit | Bus` (NATS JetStream Stream `RAGFIT_PLAN`) erfolgt unter Wahrung vollständiger **GPLv3-Lizenzisolation** über das externe, zustandslose Sidecar `ragfit-plan-bridge`.
+**RagFit | Plan** ist das zentrale Projekt- und Arbeitsplanungs-System-of-Record (Schicht `L3`) der Plattform-Dienstfamilie **`RagFit | *`** (`L0`–`L6`). Es verwaltet Projects, WorkPackages, Sprints, Agile Boards, Roadmaps und TimeEntries. Die Anmeldung erfolgt per OpenID Connect mit strikter `<org>:<team>`-Autorisierung; die Anbindung an `RagFit | Bus` (NATS JetStream Stream `ragfit-events`, Präfix `ragfit.plan.>`) erfolgt unter Wahrung vollständiger **GPLv3-Lizenzisolation** über das externe, zustandslose Sidecar `ragfit-plan-bridge`.
 
 > **Architektonische Einordnung (`W8`-Auflösung):**
 > - **RagFit (`RagFit | *`)** bezeichnet exklusiv die souveräne, 7-schichtige (`L0`–`L6`) Engineering-, Wissens-, Observability- und Multi-Agenten-Plattform der ErynoaGroup (`L0` NixOS-Substrat, `L1` `RagFit | Auth`, `L2` `RagFit | Bus` & `RagFit | SDK`, `L3` `RagFit | Source` & `RagFit | Plan`, `L4` `RagFit | Memory` & `atlasd`, `L5` `RagFit | Ops`, `RagFit | Agent` & `RagFit | Runner`, `L6` `RagFit | Console`, `RagFit | Docs`, `RagFit | Monitor` & `rk`).
@@ -58,7 +58,7 @@ flowchart TB
   subgraph L2["Schicht L2: Event, Messaging, Coordination & SDK"]
     SDK["RagFit | SDK<br/>(Typisierter REST API v3 Client)"]
     Bridge["ragfit-plan-bridge<br/>(Externes Stateless Sidecar)"]
-    Bus["RagFit | Bus<br/>(NATS JetStream · Stream RAGFIT_PLAN)"]
+    Bus["RagFit | Bus<br/>(NATS JetStream · Stream ragfit-events)"]
   end
 
   subgraph L3_Plan["Schicht L3: Operative Domain Core — RagFit | Plan (GPLv3)"]
@@ -91,7 +91,7 @@ flowchart TB
 |---|---|---|---|
 | **OIDC Login & Team-Gate** | `RagFit \| Source` / `Auth` → `RagFit \| Plan` | OpenID Connect (`groups`-Claim `<org>:<team>`) | Fail-closed Login-Autorisierung (`RAGFIT_OIDC_<PROVIDER>_LOGIN_GROUPS`) und Admin-Synchronisation (`RAGFIT_OIDC_<PROVIDER>_ADMIN_GROUP`) |
 | **Synchrone Service-API** | `RagFit \| SDK` / `Ops` → `RagFit \| Plan (:8080)` | OpenProject REST API v3 (`application/hal+json`) | Typisierte Lese-/Schreibzugriffe auf Projects, WorkPackages, Sprints und TimeEntries über Netzwerkgrenzen |
-| **Webhook → Bridge → Bus** | `RagFit \| Plan` → `ragfit-plan-bridge` → `RagFit \| Bus` | HTTP Webhook (HMAC) → `RagFitEventEnvelopeV1` auf Stream `RAGFIT_PLAN` | Übersetzt WorkPackage- und Sprint-Änderungen außerhalb des GPLv3-Prozesses in signierte NATS-Events (`plan.work_package.created.v1`, `plan.work_package.updated.v1`, `plan.sprint.*.v1`) |
+| **Webhook → Bridge → Bus** | `RagFit \| Plan` → `ragfit-plan-bridge` → `RagFit \| Bus` | HTTP Webhook (HMAC) → `RagFitEventEnvelopeV1` auf Stream `ragfit-events` (`ragfit.plan.>`) | Übersetzt WorkPackage- und Sprint-Änderungen außerhalb des GPLv3-Prozesses in signierte NATS-Events (`plan.work_package.created.v1`, `plan.work_package.updated.v1`, `plan.sprint.*.v1`) |
 
 ### RagFit Patch-Serie (`ragfit/patches/`)
 

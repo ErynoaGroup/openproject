@@ -21,6 +21,6 @@
 
 | ID | Thema | Zielschicht | Status |
 |---|---|---|---|
-| **PLN-06 (`BRIDGE-1`)** | Produktivsetzung des externen `ragfit-plan-bridge`-Sidecars für HMAC-verifizierte Webhook-Übersetzung nach `RAGFIT_PLAN` (`plan.work_package.*.v1`, `plan.sprint.*.v1`) | L3 (`Plan`) → L2 (`Bus`) | Planned (`docs/ARCHITECTURE.md` §3) |
+| **PLN-06 (`BRIDGE-1`)** | Produktivsetzung des externen `ragfit-plan-bridge`-Sidecars für HMAC-verifizierte Webhook-Übersetzung nach `ragfit-events` (`ragfit.plan.>`) (`plan.work_package.*.v1`, `plan.sprint.*.v1`) | L3 (`Plan`) → L2 (`Bus`) | Planned (`docs/ARCHITECTURE.md` §3) |
 | **PLN-07 (`HEADER-1.1.4`)** | Aktualisierung des vendorten Erynoa-Headers von `1.1.1` auf `1.1.4` inkl. `SHA256SUMS`-Prüfung | L3 (`Plan`) / L5 | Planned |
 | **PLN-08 (`SYNC-NEXT`)** | Automatisierter Rebase-Check der Patch-Serie `0001`..`0005` gegen kommende OpenProject-Releases | CI / Maintenance | Planned |

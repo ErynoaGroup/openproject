@@ -8,7 +8,7 @@
 
 | | |
 |--|--|
-| **Mission** | RagFit \| Plan (Schicht L3 Operative Domain Core): System of Record für Projects, WorkPackages, Sprints, Boards, Roadmaps und TimeEntries; GPLv3-isoliert über das externe stateless Sidecar `ragfit-plan-bridge` auf Stream `RAGFIT_PLAN` |
+| **Mission** | RagFit \| Plan (Schicht L3 Operative Domain Core): System of Record für Projects, WorkPackages, Sprints, Boards, Roadmaps und TimeEntries; GPLv3-isoliert über das externe stateless Sidecar `ragfit-plan-bridge` auf Stream `ragfit-events` (`ragfit.plan.>`) |
 | **Session goal** | Aus Auftrag, sonst: orientieren + `just doctor` + `just ci-quick` |
 | **Success** | `just doctor` grün · `just ci-quick` grün · `nix build .#container` (`just image`) grün · `erynoa-gate` & `audit-erynoa` grün |
 | **DX** | `nix develop` · `just` · `just doctor` · `just image` · `just ci-quick` |
@@ -53,7 +53,7 @@
 |-------|--------|
 | **Project** | RagFit \| Plan (`ErynoaGroup/ragfit-plan`, öffentlich unter GPLv3) |
 | **Line / Layer** | Plattform-Dienstfamilie `RagFit \| *` · Schicht L3 (Operative Domain Core — Project & Work Management SoR · GPLv3) |
-| **Purpose** | System of Record für Projects, WorkPackages, Sprints, Boards, Roadmaps und TimeEntries; OIDC-gebunden an `RagFit \| Source` / `RagFit \| Auth` und asynchron entkoppelt über `ragfit-plan-bridge` auf Stream `RAGFIT_PLAN` |
+| **Purpose** | System of Record für Projects, WorkPackages, Sprints, Boards, Roadmaps und TimeEntries; OIDC-gebunden an `RagFit \| Source` / `RagFit \| Auth` und asynchron entkoppelt über `ragfit-plan-bridge` auf Stream `ragfit-events` (`ragfit.plan.>`) |
 | **Upstream** | OpenProject `v17.9.1` (`GPL-3.0-only`), Änderungen und Patch-Serie dokumentiert in [CHANGES-RAGFIT.md](./CHANGES-RAGFIT.md) und `ragfit/patches/` |
 | **Owners** | Niklas Klein |
 | **Status / tier** | Production Core · Tier 1 · Release-Konvention `ragfit-plan-v<semver>` |
@@ -66,7 +66,7 @@
 ## Invariants
 
 1. **I-1** — **Single System of Record (Schicht `L3`):** `RagFit | Plan` besitzt exklusiv Projects, WorkPackages, Sprints, Relations, TimeEntries und Projekt-Boards. Kein anderer Dienst greift direkt auf die PostgreSQL-Datenbank von `RagFit | Plan` zu.
-2. **I-2** — **Strikte GPLv3-Lizenzisolation (Kein SDK-In-Process-Linking):** In den unter GPLv3 stehenden Ruby-/Rails-Kern wird niemals proprietärer Rust-, TypeScript- oder Python-Code aus `ragfit-sdk` gelinkt. Die Kopplung zu `RagFit | Bus` (NATS JetStream Stream `RAGFIT_PLAN`) erfolgt ausschließlich über Standard-HTTP/REST v3 und das externe, prozessual getrennte, stateless Sidecar `ragfit-plan-bridge`.
+2. **I-2** — **Strikte GPLv3-Lizenzisolation (Kein SDK-In-Process-Linking):** In den unter GPLv3 stehenden Ruby-/Rails-Kern wird niemals proprietärer Rust-, TypeScript- oder Python-Code aus `ragfit-sdk` gelinkt. Die Kopplung zu `RagFit | Bus` (NATS JetStream Stream `ragfit-events`, Subject-Präfix `ragfit.plan.>`) erfolgt ausschließlich über Standard-HTTP/REST v3 und das externe, prozessual getrennte, stateless Sidecar `ragfit-plan-bridge`.
 3. **I-3** — **Fail-Closed OIDC Team-Autorisierung (`ragfit/patches/0001..0003`):** Anmeldung und Admin-Rechte erfolgen über OpenID Connect mit vollständigen `<org>:<team>`-Claims (z. B. `ErynoaGroup:plan-user`, `ErynoaGroup:platform-admin`). Reine Organisationsnamen ohne `:team` berechtigen niemals; OIDC-verknüpfte Konten können sich nicht per Passwort anmelden.
 4. **I-4** — **Patch-Serien- & Notice-Konsistenz (`just patches` & `just notice-guard`):** Jede Änderung an Upstream-Code liegt als umkehrbar anwendbarer Patch unter `ragfit/patches/*.patch` vor und ist gemäß GPLv3 §5(a) mit Datum in `CHANGES-RAGFIT.md` dokumentiert. `LICENSE`, `COPYRIGHT` und `COPYRIGHT_short` bleiben unverändert.
 5. **I-5** — **Public-Repo Leak-Guard (`ragfit/ci/leak-guard.sh`):** Keine Klammeraffen-Erwähnungen in Prosa/Kommentaren (außer `@sha256:`-Digests), keine privaten IP-Adressen, keine internen Hostnamen und keine Infrastruktur-Domänen.
@@ -108,7 +108,7 @@
 ┌───────────────────────────────┐  ┌───────────────────────────────────────────┐
 │ L1 RagFit | Auth & L3 Source  │  │ ragfit-plan-bridge (Stateless Sidecar)    │
 │ L2 RagFit | SDK (REST Client) │  │ Validiert HMAC → übersetzt in signiertes  │
-│ L4 RagFit | Ops (Orchestrator)│  │ RagFitEventEnvelopeV1 auf RAGFIT_PLAN:    │
+│ L5 RagFit | Ops (Orchestrator)│  │ RagFitEventEnvelopeV1 auf ragfit-events:  │
 └───────────────────────────────┘  │ - plan.work_package.created/updated.v1    │
                                    │ - plan.sprint.*.v1                        │
                                    └───────────────────────────────────────────┘
@@ -130,7 +130,7 @@
 |------|---------|
 | **`RagFit \| *` (`W8`)** | Souveräne 7-schichtige (`L0`–`L6`) Agent-First-Plattform-Dienstfamilie der ErynoaGroup |
 | **GPLv3-Lizenzisolation** | Architektonische Trennung: `RagFit \| Plan` bleibt ein reiner GPLv3-Dienst ohne eincompilierte proprietäre SDKs; Bus-Integration erfolgt über die externe `ragfit-plan-bridge` |
-| **`ragfit-plan-bridge`** | Externes, zustandsloses Sidecar außerhalb des GPLv3-Prozesses, das OpenProject-Webhooks in `RagFitEventEnvelopeV1`-Nachrichten auf dem NATS-Stream `RAGFIT_PLAN` übersetzt |
+| **`ragfit-plan-bridge`** | Externes, zustandsloses Sidecar außerhalb des GPLv3-Prozesses, das OpenProject-Webhooks in `RagFitEventEnvelopeV1`-Nachrichten auf dem NATS-Stream `ragfit-events` (`ragfit.plan.>`) übersetzt |
 | **Full Team Claim (`<org>:<team>`)** | Verbindliches Autorisierungsformat (z. B. `ErynoaGroup:plan-user`); bloße Organisationsnamen werden fail-closed abgewiesen |
 | **Patch-Serie (`ragfit/patches/`)** | Nummerierte Git-Patches (`0001`..`0005`), die alle RagFit-Anpassungen kapseln und gegen `CHANGES-RAGFIT.md` geprüft werden |
 
@@ -167,6 +167,6 @@ Alle acht Erynoa-Konsumenten (Claude, Grok, Codex, Copilot, Hermes, OpenClaw, Ki
 
 ## Open questions
 
-- [ ] Produktivschaltung des externen `ragfit-plan-bridge`-Sidecars für bidirektionale PR-/WorkPackage-Synchronisation auf Stream `RAGFIT_PLAN`.
+- [ ] Produktivschaltung des externen `ragfit-plan-bridge`-Sidecars für bidirektionale PR-/WorkPackage-Synchronisation auf Stream `ragfit-events` (`ragfit.plan.>`).
 - [ ] Upgrade des vendorten Erynoa-Headers von `1.1.1` auf `1.1.4` analog zu `RagFit | Source` und `RagFit | Docs`.
 - [ ] Automatisierte Prüfung der Patch-Anwendbarkeit gegen kommende OpenProject-Minor-Releases im Sync-Workflow.

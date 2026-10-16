@@ -70,7 +70,7 @@ flowchart TB
 |---|---|---|
 | **`L0` — Substrate** | `.nixos-devstack`, `.nixos-runnerstack` (`RunnerOS`), `.nixos-lifecyclestack`, `.nixos-common` | Läuft als lizenzisolierter Container-Workload auf dem NixOS-/k3s-Plattform-Cluster (`.nixos-devstack`) mit eigenem PostgreSQL-Cluster (CloudNativePG `verify-full`) und S3-kompatiblem Attachment-Speicher. |
 | **`L1` — Identity & Trust** | `RagFit \| Auth` (Ory Kratos + Hydra v26.2.0, `kratos-admin-gate`, 4 kryptographische Ringe) | `RagFit \| Auth` (Ory Kratos + Hydra) liefert zusammen mit `RagFit \| Source` die OIDC-Identitäts- und Gruppen-Claims (`<org>:<team>`). `RagFit \| Plan` prüft diese Claims fail-closed beim Login (`0003-oidc-login-gate.patch`). |
-| **`L2` — Event Fabric & SDK** | `RagFit \| Bus` (NATS JetStream: 6 Streams, 4 KV-Buckets) + `RagFit \| SDK` | `RagFit \| SDK` spricht `RagFit \| Plan` von außen ausschließlich über die dokumentierte HTTP REST API v3 (HAL+JSON) an. Für asynchrone Events auf `RagFit \| Bus` (`ragfit-events` / `RAGFIT_PLAN`) fungiert das externe Sidecar `ragfit-plan-bridge` als lizenzisolierter Webhook-zu-CloudEvents-Übersetzer. |
+| **`L2` — Event Fabric & SDK** | `RagFit \| Bus` (NATS JetStream: 6 Streams, 4 KV-Buckets) + `RagFit \| SDK` | `RagFit \| SDK` spricht `RagFit \| Plan` von außen ausschließlich über die dokumentierte HTTP REST API v3 (HAL+JSON) an. Für asynchrone Events auf `RagFit \| Bus` (`ragfit-events` auf Subject-Präfix `ragfit.plan.>`) fungiert das externe Sidecar `ragfit-plan-bridge` als lizenzisolierter Webhook-zu-CloudEvents-Übersetzer. |
 | **`L3` — Operative Domain Cores** | `RagFit \| Source` (Gitea MIT-Fork), `RagFit \| Plan` (OpenProject GPLv3 via `ragfit-plan-bridge`) | `RagFit \| Source` und **`RagFit \| Plan`** halten strikt getrennte Datenbanken. `Plan` besitzt exklusiv Projects, WorkPackages, Sprints und TimeEntries; Verknüpfungen zwischen Pull Requests in `Source` und WorkPackages in `Plan` (`[Z-2159]`) erfolgen ereignisgetrieben. |
 | **`L4` — Knowledge & Memory** | `RagFit \| Memory` (Cognee + Kùzu + LanceDB + PG + `erynoa/hooks`) + Single-Writer `atlasd` ($\mathbf{I_7}$) | Der Single-Writer `atlasd` konsumiert `plan.work_package.*.v1`-Events über `ragfit-knowledge-requests` und indiziert Projekt- und Spezifikationskontexte in `RagFit \| Memory`. |
 | **`L5` — Orchestration & Execution** | `RagFit \| Ops` (Rust-Kern + `GrokGuard`), `RagFit \| Agent` (`.ai-harness`), `RagFit \| Runner` (+ `Runner Images`) | `RagFit \| Ops` orchestriert `WorkOrder`- und Agenten-Workflows auf Basis von `plan.work_package.*.v1`-Events und aktualisiert den Arbeitsfortschritt synchron über `ragfit-sdk` gegen die REST API v3 von `RagFit \| Plan`. |
@@ -86,8 +86,8 @@ flowchart TB
    Weder der Rust-Crate `ragfit-sdk` noch FFI-/C-Bindings oder proprietäre NATS-Envelopes werden in den Ruby-/Rails-Prozess von `RagFit | Plan` gelinkt oder als Gem eingebunden.
 2. **Kommunikation ausschließlich über Standard-Netzwerkprotokolle:**
    Eingehende Aufrufe nutzen ausschließlich die standardisierte OpenProject HTTP/REST API v3 (`application/hal+json`) und OpenID Connect.
-3. **Stateless Sidecar `ragfit-plan-bridge` für `RAGFIT_PLAN`:**
-   Zustandsänderungen in `RagFit | Plan` werden über den nativen OpenProject-Webhook-Mechanismus (mit HMAC-SHA256-Signatur) an das **externe, zustandslose Sidecar `ragfit-plan-bridge`** gesendet. Erst dieses prozessual und containerseitig getrennte Sidecar verpackt die Nutzlast in das kanonische `RagFitEventEnvelopeV1` und publiziert sie auf den NATS JetStream Stream **`RAGFIT_PLAN`**:
+3. **Stateless Sidecar `ragfit-plan-bridge` für `ragfit-events` (`ragfit.plan.>`):**
+   Zustandsänderungen in `RagFit | Plan` werden über den nativen OpenProject-Webhook-Mechanismus (mit HMAC-SHA256-Signatur) an das **externe, zustandslose Sidecar `ragfit-plan-bridge`** gesendet. Erst dieses prozessual und containerseitig getrennte Sidecar verpackt die Nutzlast in das kanonische `RagFitEventEnvelopeV1` und publiziert sie auf den NATS JetStream Stream **`ragfit-events`** (Subject-Präfix `ragfit.plan.>`):
 
 ```mermaid
 sequenceDiagram
@@ -95,7 +95,7 @@ sequenceDiagram
   participant UserOrOps as Nutzer / RagFit | Ops (via ragfit-sdk)
   participant Plan as RagFit | Plan (Rails GPLv3 :8080)
   participant Bridge as ragfit-plan-bridge (Stateless Sidecar)
-  participant Bus as RagFit | Bus (JetStream RAGFIT_PLAN)
+  participant Bus as RagFit | Bus (JetStream ragfit-events)
   participant Consumers as RagFit | Ops & RagFit | Memory
 
   UserOrOps->>Plan: PATCH /api/v3/work_packages/{id} (Bearer Token / OIDC)
@@ -106,7 +106,7 @@ sequenceDiagram
   Bus-->>Consumers: Asynchrone Zustellung an JetStream-Konsumenten
 ```
 
-### Publizierte Event-Subjects auf Stream `RAGFIT_PLAN`:
+### Publizierte Event-Subjects auf Stream `ragfit-events` (`ragfit.plan.>`):
 - `plan.work_package.created.v1` — Neues Arbeitspaket angelegt
 - `plan.work_package.updated.v1` — Status-, Zuweisungs- oder Attributänderung eines Arbeitspakets
 - `plan.sprint.started.v1` / `plan.sprint.completed.v1` — Lebenszyklus-Ereignisse einer Iteration/Version

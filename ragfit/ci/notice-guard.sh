@@ -14,6 +14,6 @@ for f in LICENSE COPYRIGHT COPYRIGHT_short; do
   git diff --quiet "$base" -- "$f" || { echo "notice-guard: $f changed vs $base" >&2; fail=1; }
 done
 echo "Files changed vs $base:"
-git diff --name-only "$base" -- . ':!ragfit' ':!.github' ':!.erynoa' ':!CHANGES-RAGFIT.md' ':!README*.md' ':!justfile' ':!flake.nix' ':!flake.lock' ':!erynoa.md' ':!AGENTS.md' ':!CLAUDE.md' ':!.claude/**' ':!.github/copilot-instructions.md' ':!docs/ARCHITECTURE.md' ':!docs/README.md' ':!docs/work/**' ':!nix/**' ':!publiccode.yml' ':!publiccode_logo.svg' ':!GitHub-tab-new.png' ':!screenshots/**' | sed 's/^/  /'
+git diff --name-only "$base" -- . ':!ragfit' ':!.github' ':!.erynoa' ':!CHANGES-RAGFIT.md' ':!README*.md' ':!justfile' ':!flake.nix' ':!flake.lock' ':!erynoa.md' ':!AGENTS.md' ':!CLAUDE.md' ':!.claude/**' ':!.github/copilot-instructions.md' ':!docs/**' ':!nix/**' ':!publiccode.yml' ':!publiccode_logo.svg' ':!GitHub-tab-new.png' ':!screenshots/**' ':!CODE_OF_CONDUCT.md' ':!CONTRIBUTING.md' ':!SECURITY.md' ':!CHANGELOG.md' ':!.env.test*' ':!docker/dev/**' ':!app/AGENTS.md' ':!app/CLAUDE.md' ':!config/AGENTS.md' ':!config/CLAUDE.md' ':!db/AGENTS.md' ':!db/CLAUDE.md' ':!spec/AGENTS.md' ':!spec/CLAUDE.md' | sed 's/^/  /'
 [[ $fail -eq 0 ]] && echo "notice-guard OK"
 exit $fail
