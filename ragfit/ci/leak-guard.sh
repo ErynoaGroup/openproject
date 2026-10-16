@@ -9,7 +9,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 # Own paths (always scanned in full)
-OWN=(ragfit .erynoa CHANGES-RAGFIT.md README-RAGFIT-CI.md justfile .github/workflows/erynoa-*.yml)
+OWN=(ragfit erynoa.md flake.nix docs/ARCHITECTURE.md docs/work CHANGES-RAGFIT.md README-RAGFIT-CI.md justfile .github/workflows/erynoa-*.yml)
 
 # Patterns (extended regex, case-insensitive)
 P_TAILNET='ts\.net|tail[0-9a-f]{6}|magicdns'

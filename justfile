@@ -9,6 +9,18 @@ image := "ragfit-plan-ci"
 default:
     just --list
 
+# Erynoa health check: doctrine files, leak guard, asset guard, notice guard, patch series
+doctor: leak-guard asset-guard notice-guard patches
+    test -f erynoa.md && test -f flake.nix && test -f docs/ARCHITECTURE.md
+    echo "doctor: ok"
+
+# Build lightweight OCI container image via Nix dockerTools.buildLayeredImage
+image:
+    nix build .#container
+
+# Alias for image
+build-image: image
+
 # Cut a release: just release <major|minor|patch>  → bumps from the latest ragfit-plan-v* tag (first release: 0.1.0),
 # creates annotated tag ragfit-plan-vX.Y.Z on main and pushes it (triggers CI build/sign/publish).
 # Own SemVer; the upstream base is recorded in release notes, OCI labels and CHANGES-RAGFIT.md, not in the tag.

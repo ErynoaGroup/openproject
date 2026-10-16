@@ -175,3 +175,14 @@ and no further restrictions may be imposed (§7, §10). Patch file: `ragfit/patc
 - `README-RAGFIT-CI.md` updated.
 
 **Why:** The previous exception skipped the mention check for whole code files, so a mention in a comment or a string of our code would not be reported.
+
+## 2026-10-15 — Erynoa doctrine, 6-layer architecture docs, Nix OCI container, and upstream bloat cleanup
+
+**What:**
+- New `erynoa.md`, `.claude/CLAUDE.md`, `.github/copilot-instructions.md`, `docs/ARCHITECTURE.md`, `docs/work/ROADMAP.md`, and `docs/work/{specs,plans,notes}/.gitkeep`; replaced upstream `AGENTS.md`, `CLAUDE.md`, `README.md`, and `docs/README.md` with Erynoa standard agent and architecture documentation.
+- New `flake.nix` and `flake.lock`: provides hermetic `devShells.default` and lightweight OCI runtime image `packages.container` (`packages.image`, `packages.default`) built via `pkgs.dockerTools.buildLayeredImage`.
+- `justfile`: added `doctor`, `image` (`nix build .#container`), and `build-image` recipes.
+- Removed obsolete pre-rename scaffold `.erynoa/` and unused upstream assets (`nix/`, `GitHub-tab-new.png`, `screenshots/`, `publiccode.yml`, `publiccode_logo.svg`).
+- Updated `ragfit/ci/leak-guard.sh` (`OWN` array) and `ragfit/ci/notice-guard.sh` path exclusions to reflect the new Erynoa doctrine and documentation files.
+
+**Why:** Standardize repository structure, 6-layer architecture documentation (including GPLv3 license isolation via `ragfit-plan-bridge`), and reproducible Nix container builds across the RagFit service family.

@@ -1,52 +1,29 @@
+# RagFit | Plan — Documentation Map
+
+> **Einstieg für KI-Agenten:** Lies zuerst [`../erynoa.md`](../erynoa.md) (Agent Planner), danach diese Dokumentationskarte und [`./ARCHITECTURE.md`](./ARCHITECTURE.md).  
+> **Einstieg für Entwickler & Operatoren:** Starte mit [`../README.md`](../README.md) und [`./ARCHITECTURE.md`](./ARCHITECTURE.md).
+
 ---
-sidebar_navigation:
-  title: OpenProject Documentation
-  priority: 999
-description: Help and documentation for OpenProject Community edition, Enterprise on-premises and Enterprise cloud.
-keywords: help, documentation
---- 
-# OpenProject Documentation
 
-> [!NOTE]
-> For enhanced usability, access the OpenProject documentation at [www.openproject.org/docs/](https://www.openproject.org/docs).
+## 1. Lesepfad für KI-Agenten (Progressive Disclosure)
 
-## Installation
+1. **[`../erynoa.md`](../erynoa.md)** — Kanonische Projektdoktrin, Invarianten (`I-1`..`I-5`), Verbote (`F-1`..`F-4`), Tooling (`nix develop`, `just doctor`, `just image`, `just ci-quick`).
+2. **[`./ARCHITECTURE.md`](./ARCHITECTURE.md)** — Rolle von `RagFit | Plan` in der **RagFit v4.0 7-Schichten-Gesamtarchitektur (`L0`–`L6`)**, **GPLv3-Lizenzisolation** über `ragfit-plan-bridge`, OIDC-Team-Gates und Systemgrenzen.
+3. **[`./work/ROADMAP.md`](./work/ROADMAP.md)** — Abgeschlossene Meilensteine und kommende Arbeitspakete unter `docs/work/`.
+4. **[`../CHANGES-RAGFIT.md`](../CHANGES-RAGFIT.md)** — Verbindliches GPLv3-Änderungsprotokoll aller RagFit-Anpassungen und Patches gegenüber OpenProject `v17.9.1`.
 
-Get started with installing and upgrading OpenProject using [our Installation Guide starting point](./installation-and-operations/).
+---
 
-The guides for [packaged](./installation-and-operations/installation/packaged) and [Docker-based](./installation-and-operations/installation/docker) installations are provided.
+## 2. Verzeichnisstruktur unter `docs/`
 
-## Upgrading
-
-The detailed upgrade instructions for our packaged installer are located on the [official website](https://www.openproject.org/download-and-installation/).
-
-The guides for [upgrading](./installation-and-operations/operation/upgrading) are provided.
-
-## Operation
-
-- [Backing up your installation](./installation-and-operations/operation/backing-up)
-- [Alter configuration of OpenProject](./installation-and-operations/configuration)
-- [Manual repository integration for Git and Subversion](./installation-and-operations/configuration/repositories)
-- [Configure incoming mails](./installation-and-operations/configuration/incoming-emails)
-- [Install custom plugins](./installation-and-operations/configuration/plugins)
-
-## User Guides
-
-Please see our [User Guide pages](./user-guide/) for detailed documentation on the functionality of OpenProject.
-
-## Use Cases
-
-Please see our [Use Cases section](./use-cases/) for detailed how-to guides and step-by-step instruction on how to set up a variety of common cases and views.
-
-## Development
-
-- [Full development environment for developers](./development/development-environment)
-- [Developing plugins](./development/create-openproject-plugin)
-- [Developing OmniAuth Plugins](./development/create-omniauth-plugin)
-- [Running tests](./development/testing)
-- [Code review guidelines](./development/code-review-guidelines)
-- [API documentation](./api)
-
-## APIv3 documentation sources
-
-The documentation for APIv3 is written in the [OpenAPI Format](https://www.openapis.org/) and its sources are being built from the entry point `openapi-spec.yml`.
+| Pfad | Inhalt & Zweck | Zielgruppe |
+|---|---|---|
+| [`docs/README.md`](./README.md) | Dieser Dokumentations-Index und Navigationspfad | Agenten & Menschen |
+| [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) | Normative Architektur von `RagFit \| Plan` im 7-Schichten-Modell (`L0`–`L6`, v4.0) & GPLv3-Isolation | Architekten, Agenten, Reviewer |
+| [`docs/work/ROADMAP.md`](./work/ROADMAP.md) | Roadmap, Patch-Serie `0001`..`0005`, `ragfit-plan-bridge` und Nix-OCI-Status | Produkt, Agenten |
+| `docs/work/specs/` | Technische Spezifikationen (`SPEC-*`) nach Skill `erynoa-docs` | Agenten & Entwickler |
+| `docs/work/plans/` | Umsetzungspläne (`PLAN-*`) für mehrstufige Änderungen | Agenten & Entwickler |
+| `docs/work/notes/` | Technische Notizen, Analysen und Entscheidungsprotokolle (`NOTE-*`) | Agenten & Entwickler |
+| [`../README-RAGFIT-CI.md`](../README-RAGFIT-CI.md) | CI-Trigger-Steuerung (`#RAGFIT-OFF#`), Leak-Guard, SLSA-Provenance und Release-Ablauf | Release-Engineering & SecOps |
+| `docs/api/` | OpenProject REST API v3 Spezifikation und Endpunkt-Dokumentation | Integratoren |
+| `docs/development/` | Backend-/Frontend-Entwicklungsrichtlinien der Upstream-Codebasis | Entwickler |
